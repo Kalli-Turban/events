@@ -1,0 +1,31 @@
+.env
+*.pyc
+__pycache__/
+.DS_Store
+venv/
+
+# Lokale Hilfsskripte – nicht mit ins Repo!
+embed_einzelantrag.py
+embed_kalli_antraege.py
+bvv_embed.py
+
+# Office-Dateien und PDFs
+*.docx
+*.xlsx
+*.pdf
+*.zip
+
+# Eigene lokale Ordner
+Backup/
+Handbuch/
+docs/
+json/
+log/
+Spielwiese/
+
+# Lokale Embedding-Skripte
+
+
+
+# Windows-Kram
+Thumbs.db
