@@ -1,9 +1,11 @@
-import os
 import gradio as gr
+import os
 
-with gr.Blocks() as demo:
-    gr.Markdown("✅ Gradio funktioniert!")
+def ping():
+    return "✅ Render lebt!"
 
-print("✅ Testscript erreicht .launch()")
-demo.launch(server_port=int(os.environ.get("PORT", 7860)), debug=True)
-# demo.launch(server_port=int(os.environ.get("PORT", 7860)))
+app = gr.Interface(fn=ping, inputs=[], outputs="text")
+
+print("✅ Kalli: Starte Gradio auf PORT", os.environ.get("PORT", 7860))
+
+app.launch(server_port=int(os.environ.get("PORT", 7860)), share=False, debug=True)
