@@ -10,7 +10,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 print(f"🔌 Verbunden mit Supabase: {SUPABASE_URL[:40]}...") if SUPABASE_KEY else print("❌ KEY fehlt!")
 
-# === Events pro Seite ===
+# === Events pro Seite ===öö
 EVENTS_PER_PAGE = 3
 
 # === Supabase Events laden ===
