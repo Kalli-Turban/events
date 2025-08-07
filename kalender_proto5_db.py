@@ -8,6 +8,8 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+print("✅ Supabase verbunden")
 print(f"🔌 Verbunden mit Supabase: {SUPABASE_URL[:40]}...") if SUPABASE_KEY else print("❌ KEY fehlt!")
 
 # === Events pro Seite ===öö
@@ -80,5 +82,7 @@ with gr.Blocks() as demo:
 if __name__ == "__main__":
     # demo.launch()
 
+    print("✅ Kalli-Deploy erreicht demo.launch() mit Port:", os.environ.get("PORT", 7860))
     demo.launch(server_port=int(os.environ.get("PORT", 7860)))
+    
 
