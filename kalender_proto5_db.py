@@ -78,4 +78,7 @@ with gr.Blocks() as demo:
     demo.load(fn=show_events_paginated, outputs=output_box)
 
 if __name__ == "__main__":
-    demo.launch()
+    # demo.launch()
+
+    demo.launch(server_port=int(os.environ.get("PORT", 7860)))
+
