@@ -14,26 +14,33 @@ EVENTS_PER_PAGE = 3
 APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der AfD in Berlin"
 LOGO_PATH = "assets/kalli_logo.png"  # optional, wenn vorhanden
 
-# === Dezentes CSS (nur Header + Footer ausblenden) ===
+# === Dezentes CSS (Header + Buttons ausblenden) ===
 CUSTOM_CSS = """
 #footer, footer { display:none !important; }
 
+/* Toolbar-Buttons beim Bild verstecken (Download/Vollbild) */
+button[aria-label="Herunterladen"],
+button[aria-label="Vollbild"],
+button[title="Herunterladen"],
+button[title="Vollbild"],
+button[aria-label="Fullscreen"],
+button[title="Fullscreen"] { display:none !important; }
+
 .kalli-header {
-    display:flex; align-items:center; gap:12px;
-    padding:10px 12px; border-radius:12px; background:#87CEEB; /* Hellblau */
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #f8fafc; /* dezent hell */
+    overflow-x: auto;      /* Schieber bei schmalem Fenster */
+    white-space: nowrap;   /* alles in einer Zeile lassen */
 }
 
-.kalli-title { 
-    font-weight:700; 
-    font-size:1.1rem; 
-    color:#000;  
-}
-
-.kalli-logo { 
-    height:40px; 
-    width:40px; 
-    object-fit:contain; 
-    display:block; 
+.kalli-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #000;  /* Schwarze Schrift auf hellem Hintergrund */
 }
 """
 
@@ -79,16 +86,16 @@ def show_events_paginated(page=0):
     markdown = "\n---\n".join([format_event_card(e) for e in paginated])
     return markdown
 
-# === GUI Aufbau (nur Header ergänzt) ===
+# === GUI Aufbau (Header mit gr.Image, Titel als HTML) ===
 with gr.Blocks(css=CUSTOM_CSS, title=APP_TITLE) as demo:
     # Header (neu)
     with gr.Row(elem_classes="kalli-header"):
         if os.path.exists(LOGO_PATH):
-            gr.HTML(f"<img src='{LOGO_PATH}' class='kalli-logo' alt='Kalli Logo'>")
+            gr.Image(LOGO_PATH, show_label=False, height=40, width=40, container=False)
             print(f"✅ Logo geladen: {LOGO_PATH}")
         else:
             print(f"⚠️ Logo nicht gefunden: {LOGO_PATH}")
-        gr.Markdown(f"<div class='kalli-title'>{APP_TITLE}</div>")
+        gr.HTML(f"<div class='kalli-title'>{APP_TITLE}</div>")
 
     gr.Markdown("## 🗓️ Klartext-Kalender – Veranstaltungen")
 
@@ -111,4 +118,8 @@ with gr.Blocks(css=CUSTOM_CSS, title=APP_TITLE) as demo:
     demo.load(fn=show_events_paginated, outputs=output_box)
 
 if __name__ == "__main__":
-    demo.launch()
+    # demo.launch()
+
+    # print("✅ Kalli-Deploy erreicht demo.launch() mit Port:", os.environ.get("PORT", 7860))
+    # demo.launch(server_port=int(os.environ.get("PORT", 7860)))
+    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
