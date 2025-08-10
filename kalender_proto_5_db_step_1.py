@@ -20,15 +20,17 @@ LOGO_PATH = "assets/kalli_logo.png"  # optional, wenn vorhanden
 # === Dezentes CSS (nur Header + Footer ausblenden) ===
 CUSTOM_CSS = """
 #footer, footer { display:none !important; }
-.kalli-header { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:12px; background:#f8fafc; }
-.kalli-title { 
-    font-weight:700; 
-    font-size:1.1rem; 
-    color:#000;  /* Schwarze Schrift auf hellem Hintergrund */
-}
+
+.kalli-header { 
+    display:flex; 
+    align-items:center;      /* vertikal zentriert */
+    justify-content:center;  /* horizontal zentriert */
+    gap:12px; 
+    padding:10px 12px; 
+    border-radius:12px; 
+    background:#87CEEB
+    }
 """
-
-
 
 # === Supabase Events laden ===
 
