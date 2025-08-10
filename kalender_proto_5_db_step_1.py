@@ -14,15 +14,21 @@ print(f"🔌 Verbunden mit Supabase: {SUPABASE_URL[:40]}...") if SUPABASE_URL el
 
 # === Konstante ===
 EVENTS_PER_PAGE = 3
-APP_TITLE = "Kalli • Events & Termine"
+APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der AfD in Berlin"
 LOGO_PATH = "assets/kalli_logo.png"  # optional, wenn vorhanden
 
 # === Dezentes CSS (nur Header + Footer ausblenden) ===
 CUSTOM_CSS = """
 #footer, footer { display:none !important; }
 .kalli-header { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:12px; background:#f8fafc; }
-.kalli-title { font-weight:700; font-size:1.1rem; }
+.kalli-title { 
+    font-weight:700; 
+    font-size:1.1rem; 
+    color:#000;  /* Schwarze Schrift auf hellem Hintergrund */
+}
 """
+
+
 
 # === Supabase Events laden ===
 
