@@ -9,11 +9,12 @@ embed_einzelantrag.py
 embed_kalli_antraege.py
 bvv_embed.py
 
-# Office-Dateien und PDFs
+# Office-Dateien und PDFs JSON
 *.docx
 *.xlsx
 *.pdf
 *.zip
+*.json
 
 # Eigene lokale Ordner
 Backup/
