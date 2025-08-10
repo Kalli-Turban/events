@@ -9,9 +9,6 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE")  # read-only im Frontend: nutzt nur SELECT
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# print("✅ Supabase verbunden")
-# print(f"🔌 Verbunden mit Supabase: {SUPABASE_URL[:40]}...") if SUPABASE_URL else print("❌ SUPABASE_URL fehlt!")
-
 # === Konstante ===
 EVENTS_PER_PAGE = 3
 APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der AfD in Berlin"
@@ -21,25 +18,26 @@ LOGO_PATH = "assets/kalli_logo.png"  # optional, wenn vorhanden
 CUSTOM_CSS = """
 #footer, footer { display:none !important; }
 
-.kalli-header { 
-    display:flex; 
-    align-items:center;      /* vertikal zentriert */
-    justify-content:center;  /* horizontal zentriert */
-    gap:12px; 
-    padding:10px 12px; 
-    border-radius:12px; 
-    background:#87CEEB
-    }
+.kalli-header {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 12px; border-radius:12px; background:#87CEEB; /* Hellblau */
+}
 
-/* Toolbar-Buttons vom Logo-Bild entfernen */
-button[aria-label="Download"], 
-button[aria-label="Fullscreen"] {
-    display: none !important;
+.kalli-title { 
+    font-weight:700; 
+    font-size:1.1rem; 
+    color:#000;  
+}
+
+.kalli-logo { 
+    height:40px; 
+    width:40px; 
+    object-fit:contain; 
+    display:block; 
 }
 """
 
 # === Supabase Events laden ===
-
 def load_events_db():
     try:
         response = supabase.table("events").select("*").order("datum", desc=False).execute()
@@ -60,7 +58,6 @@ def load_events_db():
         }]
 
 # === Formatierung eines einzelnen Events (wie gehabt) ===
-
 def format_event_card(event):
     return f"""
 ### 📌 {event.get("titel", "")}
@@ -74,7 +71,6 @@ def format_event_card(event):
 """
 
 # === Anzeige mit Seitenblättern (wie gehabt) ===
-
 def show_events_paginated(page=0):
     events = load_events_db()
     start = page * EVENTS_PER_PAGE
@@ -88,8 +84,10 @@ with gr.Blocks(css=CUSTOM_CSS, title=APP_TITLE) as demo:
     # Header (neu)
     with gr.Row(elem_classes="kalli-header"):
         if os.path.exists(LOGO_PATH):
-            gr.Image(LOGO_PATH, show_label=False, height=40, width=40, container=False, image_mode="static")
-
+            gr.HTML(f"<img src='{LOGO_PATH}' class='kalli-logo' alt='Kalli Logo'>")
+            print(f"✅ Logo geladen: {LOGO_PATH}")
+        else:
+            print(f"⚠️ Logo nicht gefunden: {LOGO_PATH}")
         gr.Markdown(f"<div class='kalli-title'>{APP_TITLE}</div>")
 
     gr.Markdown("## 🗓️ Klartext-Kalender – Veranstaltungen")
