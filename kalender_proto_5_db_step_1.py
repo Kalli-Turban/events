@@ -30,6 +30,12 @@ CUSTOM_CSS = """
     border-radius:12px; 
     background:#87CEEB
     }
+
+/* Toolbar-Buttons vom Logo-Bild entfernen */
+button[aria-label="Download"], 
+button[aria-label="Fullscreen"] {
+    display: none !important;
+}
 """
 
 # === Supabase Events laden ===
