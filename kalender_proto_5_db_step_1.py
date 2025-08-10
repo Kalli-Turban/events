@@ -82,7 +82,8 @@ with gr.Blocks(css=CUSTOM_CSS, title=APP_TITLE) as demo:
     # Header (neu)
     with gr.Row(elem_classes="kalli-header"):
         if os.path.exists(LOGO_PATH):
-            gr.Image(LOGO_PATH, show_label=False, height=40, width=40, container=False)
+            gr.Image(LOGO_PATH, show_label=False, height=40, width=40, container=False, image_mode="static")
+
         gr.Markdown(f"<div class='kalli-title'>{APP_TITLE}</div>")
 
     gr.Markdown("## 🗓️ Klartext-Kalender – Veranstaltungen")
