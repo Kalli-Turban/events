@@ -9,8 +9,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE")  # read-only im Frontend: nutzt nur SELECT
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-print("✅ Supabase verbunden")
-print(f"🔌 Verbunden mit Supabase: {SUPABASE_URL[:40]}...") if SUPABASE_URL else print("❌ SUPABASE_URL fehlt!")
+# print("✅ Supabase verbunden")
+# print(f"🔌 Verbunden mit Supabase: {SUPABASE_URL[:40]}...") if SUPABASE_URL else print("❌ SUPABASE_URL fehlt!")
 
 # === Konstante ===
 EVENTS_PER_PAGE = 3
