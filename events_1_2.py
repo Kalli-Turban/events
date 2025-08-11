@@ -1,21 +1,24 @@
-# kalender_single_v1_3.py
-# Ein-Datei-Frontend (Gradio) – entspricht v1.3
-# Features:
-# - published-Filter (nur veröffentlichte Events)
-# - show_location (Ort nur anzeigen, wenn true)
-# - Anmeldung/📧 mailto-Link bei requires_registration
-# - Trennlinie zwischen Events
-# - Druck-Button (nur Event-Bereich)
-# - Responsive Header/Buttons
-# Start:  python kalender_single_v1_3.py
+# events_1_2.py
+# Ein-Datei-Frontend (Gradio)
+# Fix: gr.Date -> gr.DateTime (Gradio v5.x)
+# - Date-Picker jetzt: gr.DateTime(include_time=False, type="string")
+# - Startdatum-Handling vereinfacht (String)
+#
+# --- Kurzüberblick ---
+# Dieses Script zeigt veröffentlichte Events aus Supabase mit optionalem Startdatum-Filter.
+# Standard: ab heutigem Datum; „Alle Termine“ hebt die Beschränkung auf.
+# Frontend via Gradio: Paginierung, Druck-Button, responsiver Header.
+# Datenschutz: Ort wird nur angezeigt, wenn show_location=True.
+# Kontakt: optionaler mailto:-Link bei requires_registration.
 
 import os
+from datetime import date
 import gradio as gr
 from dotenv import load_dotenv
 from supabase import create_client
 
 # ===== Version =====
-__APP_VERSION__ = "Frontend v1.3 (single-file)"
+__APP_VERSION__ = "Frontend v1.2 Final (fix)"
 
 # ===== Supabase Setup =====
 load_dotenv()
@@ -85,22 +88,25 @@ button[title="Fullscreen"] { display:none !important; }
 """
 
 # ===== DB-Zugriff =====
-def load_events_db():
+def load_events_db(start_date: str | None = None):
+    """Lädt veröffentlichte Events; optional ab einem Startdatum (YYYY-MM-DD)."""
     try:
-        res = (
+        # Basis-Query: nur veröffentlichte Events (published=true)
+        q = (
             supabase
             .table("events")
             .select("*")
             .eq("published", True)
-            .order("datum", desc=False)
-            .execute()
         )
+        # Optional: ab Startdatum filtern
+        if start_date:
+            q = q.gte("datum", start_date)
+        res = q.order("datum", desc=False).execute()  # aufsteigend nach Datum
         data = res.data or []
         if data:
             return data
-        # Fallback, wenn keine veröffentlichten Termine
         return [{
-            "titel": "Keine veröffentlichten Termine vorhanden",
+            "titel": "Keine passenden Termine",
             "datum": "", "uhrzeit": "", "dauer": "",
             "ort": "", "kategorie": "Hinweis", "link": "", "pdf_url": ""
         }]
@@ -163,12 +169,18 @@ def format_event_card(event: dict) -> str:
 """.strip("\n")
     return md
 
-# ===== Pagination =====
-def show_events_paginated(page=0):
-    events = load_events_db()
-    start = page * EVENTS_PER_PAGE
-    end = start + EVENTS_PER_PAGE
-    paginated = events[start:end]
+# ===== Pagination & Filter =====
+def show_events_paginated(page=0, show_all=False, start_date_val: str | None = None):
+    # Priorität: Startdatum > Alle > Standard (heute)
+    start = (start_date_val or "").strip() if start_date_val else None
+    if not start and not show_all:
+        start = date.today().isoformat()
+
+    events = load_events_db(start)
+    # Pagination (3 pro Seite)
+    start_idx = page * EVENTS_PER_PAGE
+    end_idx = start_idx + EVENTS_PER_PAGE
+    paginated = events[start_idx:end_idx]
     markdown = "\n\n---\n\n".join([format_event_card(e) for e in paginated])
     return markdown
 
@@ -186,6 +198,12 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
     gr.Markdown("## 🗓️ Klartext-Kalender – Veranstaltungen")
 
+    # Filterleiste – entweder alle Termine zeigen oder per Startdatum einschränken
+    with gr.Row():
+        show_all = gr.Checkbox(label="Alle Termine zeigen", value=False)
+        # Gradio v5: Date-Picker ist gr.DateTime; nur Datum, als String
+        start_date_inp = gr.DateTime(label="Ab Datum", include_time=False, type="string", info="leer = Standard (nur kommende)")
+
     with gr.Row(elem_classes="kalli-actions"):
         back_btn = gr.Button("⬅️ Zurück")
         next_btn = gr.Button("Weiter ➡️")
@@ -194,20 +212,26 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     output_box = gr.Markdown(elem_id="kalli-events")
     current_page = gr.State(0)
 
-    def go_back(page):
-        return max(page - 1, 0), show_events_paginated(max(page - 1, 0))
+    def go_back(page, show_all, start_date_val):
+        new_page = max(page - 1, 0)
+        return new_page, show_events_paginated(new_page, show_all, start_date_val)
 
-    def go_next(page):
-        return page + 1, show_events_paginated(page + 1)
+    def go_next(page, show_all, start_date_val):
+        new_page = page + 1
+        return new_page, show_events_paginated(new_page, show_all, start_date_val)
 
-    back_btn.click(fn=go_back, inputs=current_page, outputs=[current_page, output_box])
-    next_btn.click(fn=go_next, inputs=current_page, outputs=[current_page, output_box])
+    back_btn.click(fn=go_back, inputs=[current_page, show_all, start_date_inp], outputs=[current_page, output_box])
+    next_btn.click(fn=go_next, inputs=[current_page, show_all, start_date_inp], outputs=[current_page, output_box])
 
-    # Drucken (Browser-Print)
+    # Drucken (Browser)
     print_btn.click(fn=None, js="window.print()")
 
-    demo.load(fn=show_events_paginated, outputs=output_box)
+    # Filter-Änderungen triggern Neurender
+    show_all.change(fn=show_events_paginated, inputs=[current_page, show_all, start_date_inp], outputs=output_box)
+    start_date_inp.change(fn=show_events_paginated, inputs=[current_page, show_all, start_date_inp], outputs=output_box)
+
+    demo.load(fn=show_events_paginated, inputs=[current_page, show_all, start_date_inp], outputs=output_box)
 
 if __name__ == "__main__":
-    #demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
-    demo.launch()
+    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    #demo.launch()
