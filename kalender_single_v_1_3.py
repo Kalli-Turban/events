@@ -1,34 +1,35 @@
-# kalender_step1_v1_2.py
-# Frontend (Gradio) – basiert auf "kalender_step1_final.py"
-# Änderungen in v1.2:
-#  - Versions-Tag aktualisiert (__APP_VERSION__)
-#  - Supabase-Query filtert published=true
-#  - Anzeige von E-Mail/Anmeldung nur wenn requires_registration = true
-#  - Druck-Button mit clientseitigem window.print()
-#  - Print-CSS: nur der Eventbereich wird gedruckt (Header/Buttons ausgeblendet)
-#  - ANON_KEY als Default fürs Frontend
+# kalender_single_v1_3.py
+# Ein-Datei-Frontend (Gradio) – entspricht v1.3
+# Features:
+# - published-Filter (nur veröffentlichte Events)
+# - show_location (Ort nur anzeigen, wenn true)
+# - Anmeldung/📧 mailto-Link bei requires_registration
+# - Trennlinie zwischen Events
+# - Druck-Button (nur Event-Bereich)
+# - Responsive Header/Buttons
+# Start:  python kalender_single_v1_3.py
 
-import gradio as gr
-from supabase import create_client
 import os
+import gradio as gr
 from dotenv import load_dotenv
+from supabase import create_client
 
-# === Version ===
-__APP_VERSION__ = "Frontend v1.2"
+# ===== Version =====
+__APP_VERSION__ = "Frontend v1.3 (single-file)"
 
-# === Supabase Setup ===
+# ===== Supabase Setup =====
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-# Sicherer Default: erst ANON, optional (auf eigene Gefahr) SERVICE_ROLE
+# Sicherer Default: ANON; SERVICE_ROLE nur falls bewusst gesetzt (nicht empfohlen im Frontend)
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_ROLE")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# === Konstanten ===
+# ===== Konstanten =====
 EVENTS_PER_PAGE = 3
 APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der AfD in Berlin"
-LOGO_PATH = "assets/kalli_logo.png"  # optional, wenn vorhanden
+LOGO_PATH = "assets/kalli_logo.png"  # optional
 
-# === Dezentes CSS (Header + Buttons ausblenden + Print) ===
+# ===== CSS =====
 CUSTOM_CSS = """
 #footer, footer { display:none !important; }
 
@@ -46,31 +47,28 @@ button[title="Fullscreen"] { display:none !important; }
     gap: 12px;
     padding: 10px 12px;
     border-radius: 12px;
-    background: #f8fafc; /* dezent hell */
-    overflow-x: auto;      /* Schieber bei schmalem Fenster */
-    white-space: nowrap;   /* alles in einer Zeile lassen */
+    background: #f8fafc;
+    overflow-x: visible;   /* kein Scrollen */
+    white-space: normal;   /* Titel darf umbrechen */
 }
 
-.kalli-title {
-    font-weight: 700;
-    font-size: 1.05rem;
-    color: #000;
-}
+/* Header-Scrollbar ausblenden */
+.kalli-header::-webkit-scrollbar { display: none; }
+.kalli-header { scrollbar-width: none; }
 
-.kalli-subtitle {
-    font-weight: 500;
-    font-size: 0.9rem;
-    opacity: 0.8;
-}
+.kalli-title { font-weight: 700; font-size: 1.05rem; color: #000; }
+.kalli-subtitle { font-weight: 500; font-size: 0.9rem; opacity: 0.8; }
+
+/* Responsive Button-Zeile */
+.kalli-actions { gap: 12px; flex-wrap: wrap; }
+.kalli-actions .gr-button { flex: 1 1 200px; }
 
 @media print {
   /* Alles verstecken ... */
   body * { visibility: hidden !important; }
 
   /* ... außer dem Eventbereich */
-  #kalli-events, #kalli-events * {
-    visibility: visible !important;
-  }
+  #kalli-events, #kalli-events * { visibility: visible !important; }
 
   /* Eventbereich auf ganze Seite */
   #kalli-events {
@@ -86,11 +84,10 @@ button[title="Fullscreen"] { display:none !important; }
 }
 """
 
-# === Supabase Events laden ===
+# ===== DB-Zugriff =====
 def load_events_db():
     try:
-        # Nur veröffentlichte Events anzeigen
-        response = (
+        res = (
             supabase
             .table("events")
             .select("*")
@@ -98,14 +95,15 @@ def load_events_db():
             .order("datum", desc=False)
             .execute()
         )
-        if response.data:
-            return response.data
-        else:
-            return [{
-                "titel": "Keine veröffentlichten Termine vorhanden",
-                "datum": "", "uhrzeit": "", "dauer": "",
-                "ort": "", "kategorie": "Hinweis", "link": "", "pdf_url": ""
-            }]
+        data = res.data or []
+        if data:
+            return data
+        # Fallback, wenn keine veröffentlichten Termine
+        return [{
+            "titel": "Keine veröffentlichten Termine vorhanden",
+            "datum": "", "uhrzeit": "", "dauer": "",
+            "ort": "", "kategorie": "Hinweis", "link": "", "pdf_url": ""
+        }]
     except Exception as e:
         return [{
             "titel": "Fehler beim DB-Zugriff",
@@ -114,7 +112,7 @@ def load_events_db():
             "pdf_url": f"{e}"
         }]
 
-# === Formatierung eines einzelnen Events ===
+# ===== Rendering einer Event-Karte =====
 def format_event_card(event: dict) -> str:
     titel = event.get("titel", "") or ""
     datum = event.get("datum", "") or ""
@@ -126,33 +124,32 @@ def format_event_card(event: dict) -> str:
     link = event.get("link")
     pdf_url = event.get("pdf_url")
 
-    # Neue Felder
     requires_registration = bool(event.get("requires_registration") or False)
     email_contact = (event.get("email_contact") or "").strip()
+    show_location = bool(event.get("show_location", True))
 
-    # Badge/Zeile für Anmeldung
+    # Anmeldung
     registration_block = ""
-
     if requires_registration:
         if email_contact:
-            email_address = email_contact.strip()
-            registration_block = f"\n**📨 Anmeldung:** [{email_address}](mailto:{email_address})\n"
+            registration_block = f"\n**📨 Anmeldung:** [{email_contact}](mailto:{email_contact})\n"
         else:
             registration_block = f"\n**📨 Anmeldung erforderlich**\n"
 
- 
-    link_block = f"🔗 [Mehr erfahren]({link})" if link else ""
-    pdf_block = f"📄 [PDF anzeigen]({pdf_url})" if pdf_url else ""
-
+    # Metazeilen
     meta_line = f"🗓️ {datum}"
     if uhrzeit:
         meta_line += f" ⏰ {uhrzeit}"
     if dauer:
         meta_line += f" ({dauer})"
 
-    location_line = f"📍 {ort}"
+    # Ort nur anzeigen, wenn show_location true
+    location_line = f"📍 {ort}" if (show_location and ort) else ""
     if kategorie:
-        location_line += f" | Kategorie: {kategorie}"
+        location_line = (location_line + " | " if location_line else "") + f"Kategorie: {kategorie}"
+
+    link_block = f"🔗 [Mehr erfahren]({link})" if link else ""
+    pdf_block = f"📄 [PDF anzeigen]({pdf_url})" if pdf_url else ""
 
     md = f"""
 ### 📌 {titel}
@@ -164,10 +161,9 @@ def format_event_card(event: dict) -> str:
 {registration_block}
 {link_block}{"  |  " if link_block and pdf_block else ""}{pdf_block}
 """.strip("\n")
-
     return md
 
-# === Anzeige mit Seitenblättern ===
+# ===== Pagination =====
 def show_events_paginated(page=0):
     events = load_events_db()
     start = page * EVENTS_PER_PAGE
@@ -176,8 +172,9 @@ def show_events_paginated(page=0):
     markdown = "\n\n---\n\n".join([format_event_card(e) for e in paginated])
     return markdown
 
-# === GUI Aufbau ===
+# ===== UI =====
 with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
+    # Header
     with gr.Row(elem_classes="kalli-header"):
         if os.path.exists(LOGO_PATH):
             gr.Image(LOGO_PATH, show_label=False, height=40, width=40, container=False)
@@ -189,12 +186,12 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
     gr.Markdown("## 🗓️ Klartext-Kalender – Veranstaltungen")
 
-    with gr.Row():
+    with gr.Row(elem_classes="kalli-actions"):
         back_btn = gr.Button("⬅️ Zurück")
         next_btn = gr.Button("Weiter ➡️")
-        print_btn = gr.Button("🖨 Drucken")  # NEU
+        print_btn = gr.Button("🖨 Drucken")
 
-    output_box = gr.Markdown(elem_id="kalli-events")  # NEU: gezielter Druckbereich
+    output_box = gr.Markdown(elem_id="kalli-events")
     current_page = gr.State(0)
 
     def go_back(page):
@@ -206,11 +203,10 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     back_btn.click(fn=go_back, inputs=current_page, outputs=[current_page, output_box])
     next_btn.click(fn=go_next, inputs=current_page, outputs=[current_page, output_box])
 
-    # Druck-Button: öffnet Browser-Druckdialog
+    # Drucken (Browser-Print)
     print_btn.click(fn=None, js="window.print()")
 
     demo.load(fn=show_events_paginated, outputs=output_box)
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
-    # demo.launch()
