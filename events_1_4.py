@@ -319,5 +319,5 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     demo.load(fn=show_events_paginated, inputs=[current_page, show_all, start_date_inp], outputs=output_box)
 
 if __name__ == "__main__":
-    #demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
-    demo.launch()
+    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    #demo.launch()
