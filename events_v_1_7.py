@@ -1,4 +1,4 @@
-# events_1_7.py
+# events_1_7.py  13.08.2025 
 # Frontend mit: Header + Tipp des Tages + serverseitige Suche (ilike) + Pagination
 # Extras: Mindestlänge (>=2) für Suche, ❌ Suche löschen
 
