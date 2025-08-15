@@ -287,6 +287,22 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         next_btn = gr.Button("Weiter ➡️")
         print_btn = gr.Button("🖨 Drucken")
 
+import gradio as gr
+from packaging.version import Version
+
+def _attach_print(btn: gr.Button):
+    # Gradio 4: offizieller Param heißt `js`
+    if Version(gr.__version__) >= Version("4.0.0"):
+        btn.click(js="() => window.print()")
+    else:
+        # Gradio 3.x Fallback
+        btn.click(fn=None, inputs=None, outputs=None, _js="() => window.print()")
+
+# ...
+print_btn = gr.Button("🖨 Drucken", variant="secondary")
+_attach_print(print_btn)
+
+
     page_info = gr.Markdown()
     output_box = gr.Markdown(elem_id="kalli-events")
     q_state = gr.State("")
