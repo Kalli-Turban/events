@@ -352,5 +352,5 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     demo.load(fn=init_tipp, outputs=[tipp_md, tipp_btn], queue=False)
 
 if __name__ == "__main__":
-   #demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
-    demo.launch()
+    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+   #demo.launch()
