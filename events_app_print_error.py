@@ -1,5 +1,5 @@
 """
-Events Frontend - Version 1.7.1
+Events Frontend - Version 2.0
 Erstellt: 2025-08-15
 
 © 2025 Karl-Heinz "Kalli" Turban & KalliGPT
