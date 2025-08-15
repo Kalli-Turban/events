@@ -1,27 +1,3 @@
-"""
-Events Frontend - Version 1.7.1
-Erstellt: 2025-08-15
-
-© 2025 Karl-Heinz "Kalli" Turban & KalliGPT
-Alle Rechte vorbehalten.
-Lizenz: Privat / interne Nutzung
-
-Changelog 1.7.1:
-- Berlin-Zeitzone (Mitternacht) für Tageslogik implementiert
-- Gültigkeitsprüfung für Tagestipp (valid_from / valid_to) ergänzt
-- Terminliste auf Berlin-Zeit statt UTC umgestellt
-"""
-
-"""
-Events Frontend - Version 1.7.1
-Erstellt: 2025-08-15 07:23
-
-Changelog 1.7.1:
-- Berlin-Zeitzone (Mitternacht) für Tageslogik implementiert
-- Gültigkeitsprüfung für Tagestipp (valid_from / valid_to) ergänzt
-- Terminliste auf Berlin-Zeit statt UTC umgestellt
-"""
-
 # events_1_7.py  13.08.2025 
 # Frontend mit: Header + Tipp des Tages + serverseitige Suche (ilike) + Pagination
 # Extras: Mindestlänge (>=2) für Suche, ❌ Suche löschen
@@ -29,11 +5,10 @@ Changelog 1.7.1:
 import os
 import math
 import re
-from datetime import date, datetime
+from datetime import date
 import gradio as gr
 from dotenv import load_dotenv
 from supabase import create_client
-from zoneinfo import ZoneInfo
 
 __APP_VERSION__ = "Frontend v1.7 (Search + Header + Tipp + MinLen + Clear)"
 
@@ -48,15 +23,6 @@ EVENTS_PER_PAGE = 6
 APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der AfD in Berlin"
 LOGO_PATH = "assets/kalli_logo.png"  # optional
 
-
-# ===== Zeit / Datum (Berlin) =====
-def today_berlin() -> str:
-    """Liefert das lokale Berlin-Datum als ISO-String (YYYY-MM-DD)."""
-    try:
-        return datetime.now(ZoneInfo("Europe/Berlin")).date().isoformat()
-    except Exception:
-        # Fallback: lokale Systemzeit
-        return date.today().isoformat()
 # ===== CSS =====
 CUSTOM_CSS = """
 #footer, footer { display:none !important; }
@@ -94,14 +60,11 @@ def _public_url(res):
     return ""
 
 def load_tipp(sb):
-    today = today_berlin()
     try:
         data = (
             sb.table("site_news_tipp")
               .select("*")
               .eq("published", True)
-              .lte("valid_from", today)
-              .or_(f"valid_to.gte.{today},valid_to.is.null")
               .order("valid_from", desc=True)
               .order("created_at", desc=True)
               .limit(1)
@@ -209,7 +172,7 @@ def search_page(query: str, page: int, show_all: bool, start_date_val: str | Non
         # Datumslogik: ab heute, außer 'Alle' ist an oder Startdatum gesetzt
         start = (start_date_val or "").strip() if start_date_val else None
         if not start and not show_all:
-            start = today_berlin()
+            start = date.today().isoformat()
         if start:
             tbl = tbl.gte("datum", start[:10])
 
@@ -233,32 +196,6 @@ def search_page(query: str, page: int, show_all: bool, start_date_val: str | Non
         md = f"⚠️ Fehler bei der Suche: {e}\n\nBitte versuche es erneut oder setze die Filter zurück."
         return md, "**0 Treffer** · Seite 1/1", query, 1
 
-
-def update_nav_from_info(info: str):
-    import re as _re
-    m = _re.search(r"Seite\s+(\d+)\s*/\s*(\d+)", info or "")
-    if not m:
-        return gr.update(visible=False), gr.update(visible=False)
-    page, pages = int(m.group(1)), int(m.group(2))
-    return gr.update(visible=page > 1), gr.update(visible=page < pages)
-
-def _clamp_page_for(q, page, show_all, start_date_val):
-    import math as _math
-    cq = supabase.table("events").select("id", count="exact").eq("published", True)
-    start = (start_date_val or "").strip() if start_date_val else None
-    if not start and not show_all:
-        start = today_berlin()
-    if start:
-        cq = cq.gte("datum", start[:10])
-    for t in _tokens(q):
-        ilike = f"%{t}%"
-        cq = cq.or_("titel.ilike.{},kategorie.ilike.{},beschreibung.ilike.{},ort.ilike.{},status.ilike.{},team.ilike.{}".format(
-            ilike, ilike, ilike, ilike, ilike, ilike
-        ))
-    total = (cq.execute().count or 0)
-    pages = max(1, _math.ceil(total / EVENTS_PER_PAGE)) if total > 0 else 1
-    return min(max(1, page), pages)
-
 # ===== UI =====
 with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
     # Header
@@ -278,7 +215,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     # Filterleiste
     with gr.Row():
         suchfeld = gr.Textbox(label="🔎 Suche", placeholder="z. B. Stammtisch, Infostand … (min. 2 Zeichen)")
-        clear_search = gr.Button("❌", elem_id="btn-clear", scale=0, min_width=48)
+        clear_search = gr.Button("❌ Suche löschen")
         show_all = gr.Checkbox(label="Alle Termine zeigen", value=False)
         start_date_inp = gr.DateTime(label="Ab Datum", include_time=False, type="string", info="leer = Standard (nur kommende)")
 
@@ -302,13 +239,11 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         return md, info, qs, 1
 
     def go_back(q, page, show_all, start_date_val):
-        p = _clamp_page_for(q, max(1, page-1), show_all, start_date_val)
-        md, info, q2, p2 = search_page(q, p, show_all, start_date_val)
+        md, info, q2, p2 = search_page(q, max(1, page-1), show_all, start_date_val)
         return md, info, p2
 
     def go_next(q, page, show_all, start_date_val):
-        p = _clamp_page_for(q, page+1, show_all, start_date_val)
-        md, info, q2, p2 = search_page(q, p, show_all, start_date_val)
+        md, info, q2, p2 = search_page(q, page+1, show_all, start_date_val)
         return md, info, p2
 
     def clear_search_fn(show_all, start_date_val):
@@ -316,13 +251,13 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         return md, info, "", 1, ""
 
     # Hooks
-    suchfeld.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
-    show_all.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
-    start_date_inp.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
+    suchfeld.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page])
+    show_all.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page])
+    start_date_inp.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page])
 
-    back_btn.click(fn=go_back, inputs=[q_state, current_page, show_all, start_date_inp], outputs=[output_box, page_info, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
-    next_btn.click(fn=go_next, inputs=[q_state, current_page, show_all, start_date_inp], outputs=[output_box, page_info, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
-    clear_search.click(fn=clear_search_fn, inputs=[show_all, start_date_inp], outputs=[output_box, page_info, suchfeld, current_page, q_state]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
+    back_btn.click(fn=go_back, inputs=[q_state, current_page, show_all, start_date_inp], outputs=[output_box, page_info, current_page])
+    next_btn.click(fn=go_next, inputs=[q_state, current_page, show_all, start_date_inp], outputs=[output_box, page_info, current_page])
+    clear_search.click(fn=clear_search_fn, inputs=[show_all, start_date_inp], outputs=[output_box, page_info, suchfeld, current_page, q_state])
 
     # Initial Load
     demo.load(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page])
@@ -341,9 +276,5 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     demo.load(fn=init_tipp, outputs=[tipp_md, tipp_btn], queue=False)
 
 if __name__ == "__main__":
-    demo.launch()
-    #demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
-
-# --- Ende Datei ---
-# © 2025 Karl-Heinz "Kalli" Turban & KalliGPT
-# Lizenz: Nur für internen Gebrauch. Keine Weitergabe ohne Genehmigung.
+    # demo.launch()
+    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
