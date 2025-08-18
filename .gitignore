@@ -31,3 +31,7 @@ toolscripts/
 
 # Windows-Kram
 Thumbs.db
+toolscriptstarter.bat
+venv-check.bat
+.gitignore
+requirements.txt
