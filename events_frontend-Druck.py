@@ -1,91 +1,95 @@
-"""
-Events Frontend - Version 2.0
-Erstellt: 2025-08-15
+# ============================================================
+#  Events-Frontend
+#
+#  Changelog:
+#   - v4.2 (2025-08-19) [KI+Kalli]:
+#       • Druck-Button repariert:
+#         - Warnung "too many outputs" behoben (fn=lambda: None statt "ping")
+#         - Event-Kette mit .then(js=...) eingebaut
+#         - Fallback: direkter JS-Listener (DOM), da Gradio-JS teils verschluckt
+#       • Kommentarblock "Druck-Workaround" hinzugefügt
+#
+#   - v4.1 (2025-08-18) [KI+Kalli]:
+#       • Code refaktorisiert in Blöcke
+#       • Deployment/Local-Test Switch (demo.launch)
+#
+#  Autoren: KI + Kalli
+# ============================================================
 
-© 2025 Karl-Heinz "Kalli" Turban & KalliGPT
-Alle Rechte vorbehalten.
-Lizenz: Privat / interne Nutzung
 
-Changelog 1.7.1:
-- Berlin-Zeitzone (Mitternacht) für Tageslogik implementiert
-- Gültigkeitsprüfung für Tagestipp (valid_from / valid_to) ergänzt
-- Terminliste auf Berlin-Zeit statt UTC umgestellt
-"""
+# =============================
+# BLOCK 1 — Header & Setup
+# =============================
 
-"""
-Events Frontend - Version 1.7.1
-Erstellt: 2025-08-15 07:23
-
-Changelog 1.7.1:
-- Berlin-Zeitzone (Mitternacht) für Tageslogik implementiert
-- Gültigkeitsprüfung für Tagestipp (valid_from / valid_to) ergänzt
-- Terminliste auf Berlin-Zeit statt UTC umgestellt
-"""
-
-# events_1_7.py  13.08.2025 
-# Frontend mit: Header + Tipp des Tages + serverseitige Suche (ilike) + Pagination
-# Extras: Mindestlänge (>=2) für Suche, ❌ Suche löschen
-
+# ----- Imports & Setup -----
 import os
 import math
 import re
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
+
 import gradio as gr
 from dotenv import load_dotenv
 from supabase import create_client
-from zoneinfo import ZoneInfo
 
-__APP_VERSION__ = "Frontend v1.7 (Search + Header + Tipp + MinLen + Clear)"
+# ----- App Version -----
+__APP_VERSION__ = "Frontend v1.7.1 (Search+Print Merged)"
 
-# ===== Supabase Setup =====
+# ----- Supabase Setup -----
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_ROLE")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ===== Konstanten =====
+# ----- Konstanten -----
 EVENTS_PER_PAGE = 6
 APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der AfD in Berlin"
-LOGO_PATH = "assets/kalli_logo.png"  # optional
+LOGO_PATH = "assets/kalli_logo.png"
 
-
-# ===== Zeit / Datum (Berlin) =====
+# ----- Zeit / Datum -----
 def today_berlin() -> str:
-    """Liefert das lokale Berlin-Datum als ISO-String (YYYY-MM-DD)."""
     try:
         return datetime.now(ZoneInfo("Europe/Berlin")).date().isoformat()
     except Exception:
-        # Fallback: lokale Systemzeit
         return date.today().isoformat()
-# ===== CSS =====
+
+# ----- CSS -----
 CUSTOM_CSS = """
 #footer, footer { display:none !important; }
-button[aria-label="Herunterladen"],
-button[aria-label="Vollbild"],
-button[title="Herunterladen"],
-button[title="Vollbild"],
-button[aria-label="Fullscreen"],
-button[title="Fullscreen"] { display:none !important; }
-.kalli-header {
-  display:flex; align-items:center; gap:12px; padding:10px 12px;
-  border-radius:12px; background:#f8fafc; overflow-x:visible; white-space:normal;
-}
+button[aria-label="Herunterladen"], button[aria-label="Vollbild"],
+button[title="Herunterladen"], button[title="Vollbild"],
+button[aria-label="Fullscreen"], button[title="Fullscreen"] { display:none !important; }
+
+.kalli-header { display:flex; align-items:center; gap:12px; padding:10px 12px;
+  border-radius:12px; background:#f8fafc; overflow-x:visible; white-space:normal; }
 .kalli-header::-webkit-scrollbar { display:none; }
 .kalli-header { scrollbar-width:none; }
 .kalli-title { font-weight:700; font-size:1.05rem; color:#000; }
 .kalli-subtitle { font-weight:500; font-size:0.9rem; opacity:0.8; }
 .kalli-actions { gap:12px; flex-wrap:wrap; }
 .kalli-actions .gr-button { flex: 1 1 200px; }
+
 @media print {
   body * { visibility: hidden !important; }
   #kalli-events, #kalli-events * { visibility: visible !important; }
-  #kalli-events { position: absolute !important; left: 0; top: 0; width: 100%; padding: 0 !important; background: #fff !important; }
-  .kalli-header, .gr-button { display: none !important; }
+  #kalli-events { position: absolute !important; left: 0; top: 0; width: 100%;
+    padding: 0 !important; background: #fff !important; }
+
+  /* Filterleiste, Header, Aktionen komplett aus dem Layout entfernen */
+  .kalli-header, .kalli-actions, #filterbar { display: none !important; }
+  .kalli-header *, .kalli-actions *, #filterbar * { display: none !important; }
+
+  /* Sicherheitsnetz gegen Tooltips/Popover/Portals */
+  [role="tooltip"], [data-testid="tooltip"], .tooltip, .popover { display: none !important; }
+  #btn-clear { display: none !important; }
 }
 """
 
-# ===== Tipp-Bereich =====
+# =============================
+# BLOCK 2 — Tipp-Bereich & Event-Card Rendering
+# =============================
 
+# ----- Tipp-Helpers -----
 def _public_url(res):
     if isinstance(res, str):
         return res
@@ -93,24 +97,23 @@ def _public_url(res):
         return res.get("publicUrl") or res.get("data", {}).get("publicUrl", "")
     return ""
 
+# ----- Tipp laden -----
 def load_tipp(sb):
     today = today_berlin()
     try:
-        data = (
-            sb.table("site_news_tipp")
-              .select("*")
-              .eq("published", True)
-              .lte("valid_from", today)
-              .or_(f"valid_to.gte.{today},valid_to.is.null")
-              .order("valid_from", desc=True)
-              .order("created_at", desc=True)
-              .limit(1)
-              .execute()
-        ).data
+        data = (sb.table("site_news_tipp").select("*")
+                .eq("published", True)
+                .lte("valid_from", today)
+                .or_(f"valid_to.gte.{today},valid_to.is.null")
+                .order("valid_from", desc=True)
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()).data
         return data[0] if data else None
     except Exception:
         return None
 
+# ----- CTA URL Resolver -----
 def resolve_cta_url(row):
     kind = (row.get("cta_kind") or "").lower()
     if kind == "external":
@@ -122,6 +125,7 @@ def resolve_cta_url(row):
         return _public_url(supabase.storage.from_(b).get_public_url(p))
     return ""
 
+# ----- Tipp Chip HTML -----
 def tipp_chip_html(row):
     if not row:
         return ""
@@ -129,15 +133,9 @@ def tipp_chip_html(row):
     if not url:
         return ""
     label = (row.get("cta_label") or "Mehr lesen") + " ↗"
-    return (
-        f'<a href="{url}" target="_blank" rel="noopener" '
-        'style="display:inline-block;padding:8px 12px;border:1px solid #888;'
-        'border-radius:999px;text-decoration:none;font-weight:600;">'
-        f'💡 {label}</a>'
-    )
+    return f'<a href="{url}" target="_blank" rel="noopener" style="display:inline-block;padding:8px 12px;border:1px solid #888;border-radius:999px;text-decoration:none;font-weight:600;">💡 {label}</a>'
 
-# ===== Rendering einer Event-Karte =====
-
+# ----- Event-Karte Rendering -----
 def format_event_card(event: dict) -> str:
     titel = event.get("titel", "") or ""
     datum = event.get("datum", "") or ""
@@ -197,53 +195,48 @@ def format_event_card(event: dict) -> str:
 """.strip("\n")
     return md
 
-# ===== Suche + Pagination =====
+# =============================
+# BLOCK 3 — Suche & Pagination
+# =============================
 
+# ----- Tokenizer -----
 def _tokens(q: str):
     return [t for t in re.split(r"\s+", (q or '').strip()) if t]
 
+# ----- Suche Seite -----
 def search_page(query: str, page: int, show_all: bool, start_date_val: str | None):
     try:
         tbl = supabase.table("events").select("*", count="exact").eq("published", True)
-
-        # Datumslogik: ab heute, außer 'Alle' ist an oder Startdatum gesetzt
         start = (start_date_val or "").strip() if start_date_val else None
         if not start and not show_all:
             start = today_berlin()
         if start:
             tbl = tbl.gte("datum", start[:10])
-
         for t in _tokens(query):
             ilike = f"%{t}%"
-            tbl = tbl.or_("titel.ilike.{},kategorie.ilike.{},beschreibung.ilike.{},ort.ilike.{},status.ilike.{},team.ilike.{}".format(
-                ilike, ilike, ilike, ilike, ilike, ilike
-            ))
-
+            tbl = tbl.or_("titel.ilike.{},kategorie.ilike.{},beschreibung.ilike.{},ort.ilike.{},status.ilike.{},team.ilike.{}".format(ilike, ilike, ilike, ilike, ilike, ilike))
         tbl = tbl.order("datum", desc=False)
         start_idx = max(0, (max(1, page) - 1) * EVENTS_PER_PAGE)
         end_idx = start_idx + EVENTS_PER_PAGE - 1
         res = tbl.range(start_idx, end_idx).execute()
-        data = res.data or []
-        total = res.count or 0
+        data, total = res.data or [], res.count or 0
         pages = max(1, math.ceil(total / EVENTS_PER_PAGE))
         page = min(max(1, page), pages)
         md = "\n\n---\n\n".join([format_event_card(e) for e in data]) if data else "Keine passenden Termine."
         return md, f"**{total} Treffer** · Seite {page}/{pages}", query, page
     except Exception as e:
-        md = f"⚠️ Fehler bei der Suche: {e}\n\nBitte versuche es erneut oder setze die Filter zurück."
-        return md, "**0 Treffer** · Seite 1/1", query, 1
+        return f"⚠️ Fehler bei der Suche: {e}\n\nBitte versuche es erneut oder setze die Filter zurück.", "**0 Treffer** · Seite 1/1", query, 1
 
-
+# ----- Navigation Update -----
 def update_nav_from_info(info: str):
-    import re as _re
-    m = _re.search(r"Seite\s+(\d+)\s*/\s*(\d+)", info or "")
+    m = re.search(r"Seite\s+(\d+)\s*/\s*(\d+)", info or "")
     if not m:
         return gr.update(visible=False), gr.update(visible=False)
     page, pages = int(m.group(1)), int(m.group(2))
     return gr.update(visible=page > 1), gr.update(visible=page < pages)
 
+# ----- Clamp Page -----
 def _clamp_page_for(q, page, show_all, start_date_val):
-    import math as _math
     cq = supabase.table("events").select("id", count="exact").eq("published", True)
     start = (start_date_val or "").strip() if start_date_val else None
     if not start and not show_all:
@@ -252,64 +245,70 @@ def _clamp_page_for(q, page, show_all, start_date_val):
         cq = cq.gte("datum", start[:10])
     for t in _tokens(q):
         ilike = f"%{t}%"
-        cq = cq.or_("titel.ilike.{},kategorie.ilike.{},beschreibung.ilike.{},ort.ilike.{},status.ilike.{},team.ilike.{}".format(
-            ilike, ilike, ilike, ilike, ilike, ilike
-        ))
+        cq = cq.or_("titel.ilike.{},kategorie.ilike.{},beschreibung.ilike.{},ort.ilike.{},status.ilike.{},team.ilike.{}".format(ilike, ilike, ilike, ilike, ilike, ilike))
     total = (cq.execute().count or 0)
-    pages = max(1, _math.ceil(total / EVENTS_PER_PAGE)) if total > 0 else 1
+    pages = max(1, math.ceil(total / EVENTS_PER_PAGE)) if total > 0 else 1
     return min(max(1, page), pages)
 
-# ===== UI =====
+# =============================
+# BLOCK 4 — UI & Handlers
+# =============================
+
 with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
-    # Header
+    # ----- Header -----
     with gr.Row(elem_classes="kalli-header"):
         if os.path.exists(LOGO_PATH):
             gr.Image(LOGO_PATH, show_label=False, height=40, width=40, container=False)
         gr.HTML(f"<div><div class='kalli-title'>{APP_TITLE}</div><div class='kalli-subtitle'>{__APP_VERSION__}</div></div>")
 
-    # Tipp des Tages
+    # ----- Tipp des Tages -----
     with gr.Row():
         tipp_md = gr.Markdown(visible=False)
         tipp_btn = gr.HTML(visible=False)
     gr.HTML('<div style="height:1px;background:#3a3a3a;margin:8px 0 14px;border-radius:1px;"></div>')
 
+    # ----- Section: Veranstaltungen -----
     gr.Markdown("## Veranstaltungen")
 
-    # Filterleiste
-    with gr.Row():
+    # ----- Filterleiste -----
+    with gr.Row(elem_id="filterbar"):
         suchfeld = gr.Textbox(label="🔎 Suche", placeholder="z. B. Stammtisch, Infostand … (min. 2 Zeichen)")
         clear_search = gr.Button("❌", elem_id="btn-clear", scale=0, min_width=48)
         show_all = gr.Checkbox(label="Alle Termine zeigen", value=False)
         start_date_inp = gr.DateTime(label="Ab Datum", include_time=False, type="string", info="leer = Standard (nur kommende)")
 
+    # ----- Navigation & Print -----
     with gr.Row(elem_classes="kalli-actions"):
         back_btn = gr.Button("⬅️ Zurück")
         next_btn = gr.Button("Weiter ➡️")
-        print_btn = gr.Button("🖨 Drucken")
+        print_btn = gr.Button("🖨 Drucken", elem_id="btn-print")
 
-import gradio as gr
-from packaging.version import Version
+    print_evt = print_btn.click(fn=lambda: None, inputs=None, outputs=None, queue=False)
+    print_evt.then(
+        fn=None,
+        js="try{if(document.activeElement){document.activeElement.blur();}}catch(e){} window.print();",
+        queue=False
+    )
 
-def _attach_print(btn: gr.Button):
-    # Gradio 4: offizieller Param heißt `js`
-    if Version(gr.__version__) >= Version("4.0.0"):
-        btn.click(js="() => window.print()")
-    else:
-        # Gradio 3.x Fallback
-        btn.click(fn=None, inputs=None, outputs=None, _js="() => window.print()")
+    # Fallback: direkter JS-Listener am Button (manche Gradio-Builds droppen js= am Event)
+    demo.load(
+        fn=None,
+        js="(()=>{const el=document.getElementById('btn-print');if(!el)return;el.addEventListener('click',()=>{try{if(document.activeElement){document.activeElement.blur();}}catch(e){} window.print();},{once:false});})()",
+        queue=False
+    )
 
-# ...
-print_btn = gr.Button("🖨 Drucken", variant="secondary")
-_attach_print(print_btn)
-
-
+    # ----- Outputs -----
     page_info = gr.Markdown()
     output_box = gr.Markdown(elem_id="kalli-events")
     q_state = gr.State("")
     current_page = gr.State(1)
 
-    # Handlers
+    # ----- Handler: do_search -----
     def do_search(q, show_all, start_date_val):
+        """Search handler.
+        Normalisiert die Query (min. 2 Zeichen), ruft die Datenabfrage auf
+        und setzt gleichzeitig den internen Zustand (q_state, current_page).
+        """
         qs = (q or "").strip()
         if qs and len(qs) < 2:
             md, info, _, _ = search_page("", 1, show_all, start_date_val)
@@ -317,21 +316,32 @@ _attach_print(print_btn)
         md, info, _, _ = search_page(qs, 1, show_all, start_date_val)
         return md, info, qs, 1
 
+    # ----- Handler: Navigation -----
     def go_back(q, page, show_all, start_date_val):
+        """Navigiert eine Seite zurück (sofern vorhanden) und clamped Page-Index.
+        Gibt gerenderte Markdown-Liste, Page-Info und die neue Seite zurück.
+        """
         p = _clamp_page_for(q, max(1, page-1), show_all, start_date_val)
         md, info, q2, p2 = search_page(q, p, show_all, start_date_val)
         return md, info, p2
 
     def go_next(q, page, show_all, start_date_val):
+        """Navigiert eine Seite vor (sofern vorhanden) und clamped Page-Index.
+        Gibt gerenderte Markdown-Liste, Page-Info und die neue Seite zurück.
+        """
         p = _clamp_page_for(q, page+1, show_all, start_date_val)
         md, info, q2, p2 = search_page(q, p, show_all, start_date_val)
         return md, info, p2
 
+    # ----- Handler: Clear Search -----
     def clear_search_fn(show_all, start_date_val):
+        """Setzt Suchfeld und Seite zurück und lädt Standardliste (kommende Termine).
+        Liefert außerdem einen leeren q_state, damit Navigation konsistent bleibt.
+        """
         md, info, _, _ = search_page("", 1, show_all, start_date_val)
         return md, info, "", 1, ""
 
-    # Hooks
+    # ----- Hooks -----
     suchfeld.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
     show_all.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
     start_date_inp.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
@@ -340,11 +350,14 @@ _attach_print(print_btn)
     next_btn.click(fn=go_next, inputs=[q_state, current_page, show_all, start_date_inp], outputs=[output_box, page_info, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
     clear_search.click(fn=clear_search_fn, inputs=[show_all, start_date_inp], outputs=[output_box, page_info, suchfeld, current_page, q_state]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
 
-    # Initial Load
+    # ----- Initial Load -----
     demo.load(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page])
 
-    # Tipp laden
+    # ----- Tipp Init -----
     def init_tipp():
+        """Lädt den 'Tipp des Tages' aus Supabase und zeigt optional einen CTA-Button.
+        Gibt zwei Komponenten-Updates zurück: Markdown-Inhalt und CTA-HTML.
+        """
         row = load_tipp(supabase)
         if not row:
             return gr.update(visible=False), gr.update(visible=False)
@@ -357,9 +370,8 @@ _attach_print(print_btn)
     demo.load(fn=init_tipp, outputs=[tipp_md, tipp_btn], queue=False)
 
 if __name__ == "__main__":
-    # demo.launch()
+    # Für Deployment (Render, Docker etc.):
     demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
 
-# --- Ende Datei ---
-# © 2025 Karl-Heinz "Kalli" Turban & KalliGPT
-# Lizenz: Nur für internen Gebrauch. Keine Weitergabe ohne Genehmigung.
+    # Für lokalen Test:
+    #demo.launch()
