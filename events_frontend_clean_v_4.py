@@ -2,14 +2,14 @@
 #  Events-Frontend
 #
 #  Changelog:
-#   - v2.2 (2025-08-19) [KI+Kalli]:
+#   - v4.2 (2025-08-19) [KI+Kalli]:
 #       • Druck-Button repariert:
 #         - Warnung "too many outputs" behoben (fn=lambda: None statt "ping")
 #         - Event-Kette mit .then(js=...) eingebaut
 #         - Fallback: direkter JS-Listener (DOM), da Gradio-JS teils verschluckt
 #       • Kommentarblock "Druck-Workaround" hinzugefügt
 #
-#   - v2.1 (2025-08-18) [KI+Kalli]:
+#   - v4.1 (2025-08-18) [KI+Kalli]:
 #       • Code refaktorisiert in Blöcke
 #       • Deployment/Local-Test Switch (demo.launch)
 #
@@ -33,7 +33,7 @@ from dotenv import load_dotenv
 from supabase import create_client
 
 # ----- App Version -----
-__APP_VERSION__ = "Frontend v2 (Print Merged)"
+__APP_VERSION__ = "Frontend v2 (Google-Fonts!)"
 
 # ----- Supabase Setup -----
 load_dotenv()
@@ -55,19 +55,31 @@ def today_berlin() -> str:
 
 # ----- CSS -----
 CUSTOM_CSS = """
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap');
+
 #footer, footer { display:none !important; }
 button[aria-label="Herunterladen"], button[aria-label="Vollbild"],
 button[title="Herunterladen"], button[title="Vollbild"],
 button[aria-label="Fullscreen"], button[title="Fullscreen"] { display:none !important; }
 
-.kalli-header { display:flex; align-items:center; gap:12px; padding:10px 12px;
-  border-radius:12px; background:#f8fafc; overflow-x:visible; white-space:normal; }
+.kalli-header { display:flex; align-items:center; gap:14px; padding:12px 14px;
+  border-radius:14px; background:#f8fafc; overflow-x:visible; white-space:normal; }
 .kalli-header::-webkit-scrollbar { display:none; }
 .kalli-header { scrollbar-width:none; }
-.kalli-title { font-weight:700; font-size:1.05rem; color:#000; }
-.kalli-subtitle { font-weight:500; font-size:0.9rem; opacity:0.8; }
+.logo img { width:72px; height:72px; border-radius:16px; object-fit:cover; }
+.title { font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; font-weight:700; font-size:1.25rem; line-height:1.2; color:#003366; }
+.kalli-subtitle { font-weight:500; font-size:0.92rem; opacity:0.8; }
 .kalli-actions { gap:12px; flex-wrap:wrap; }
 .kalli-actions .gr-button { flex: 1 1 200px; }
+
+/* Tipp-Slot */
+.tip-slot { background:#e0f7fa; border-radius:14px; padding:10px 12px; }
+.tip-slot .gr-markdown { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.tip-button { display:inline-block; padding:8px 12px; border-radius:999px; text-decoration:none; font-weight:700; border:1px solid #007a99; background:#00a3c4; color:#fff; }
+.tip-button:hover { filter:brightness(0.95); }
+
+/* Ticker */
+.ticker-row { display:flex; gap:16px; align-items:center; padding:6px 10px; font-size:0.9rem; opacity:0.85; }
 
 @media print {
   body * { visibility: hidden !important; }
@@ -133,7 +145,8 @@ def tipp_chip_html(row):
     if not url:
         return ""
     label = (row.get("cta_label") or "Mehr lesen") + " ↗"
-    return f'<a href="{url}" target="_blank" rel="noopener" style="display:inline-block;padding:8px 12px;border:1px solid #888;border-radius:999px;text-decoration:none;font-weight:600;">💡 {label}</a>'
+    # Nutze CSS-Klasse statt Inline-Styles
+    return f'<a href="{url}" target="_blank" rel="noopener" class="tip-button">💡 {label}</a>'
 
 # ----- Event-Karte Rendering -----
 def format_event_card(event: dict) -> str:
@@ -214,7 +227,11 @@ def search_page(query: str, page: int, show_all: bool, start_date_val: str | Non
             tbl = tbl.gte("datum", start[:10])
         for t in _tokens(query):
             ilike = f"%{t}%"
-            tbl = tbl.or_("titel.ilike.{},kategorie.ilike.{},beschreibung.ilike.{},ort.ilike.{},status.ilike.{},team.ilike.{}".format(ilike, ilike, ilike, ilike, ilike, ilike))
+            tbl = tbl.or_(
+                "titel.ilike.{},kategorie.ilike.{},beschreibung.ilike.{},ort.ilike.{},status.ilike.{},team.ilike.{}".format(
+                    ilike, ilike, ilike, ilike, ilike, ilike
+                )
+            )
         tbl = tbl.order("datum", desc=False)
         start_idx = max(0, (max(1, page) - 1) * EVENTS_PER_PAGE)
         end_idx = start_idx + EVENTS_PER_PAGE - 1
@@ -225,7 +242,12 @@ def search_page(query: str, page: int, show_all: bool, start_date_val: str | Non
         md = "\n\n---\n\n".join([format_event_card(e) for e in data]) if data else "Keine passenden Termine."
         return md, f"**{total} Treffer** · Seite {page}/{pages}", query, page
     except Exception as e:
-        return f"⚠️ Fehler bei der Suche: {e}\n\nBitte versuche es erneut oder setze die Filter zurück.", "**0 Treffer** · Seite 1/1", query, 1
+        return (
+            f"⚠️ Fehler bei der Suche: {e}\n\nBitte versuche es erneut oder setze die Filter zurück.",
+            "**0 Treffer** · Seite 1/1",
+            query,
+            1,
+        )
 
 # ----- Navigation Update -----
 def update_nav_from_info(info: str):
@@ -245,7 +267,11 @@ def _clamp_page_for(q, page, show_all, start_date_val):
         cq = cq.gte("datum", start[:10])
     for t in _tokens(q):
         ilike = f"%{t}%"
-        cq = cq.or_("titel.ilike.{},kategorie.ilike.{},beschreibung.ilike.{},ort.ilike.{},status.ilike.{},team.ilike.{}".format(ilike, ilike, ilike, ilike, ilike, ilike))
+        cq = cq.or_(
+            "titel.ilike.{},kategorie.ilike.{},beschreibung.ilike.{},ort.ilike.{},status.ilike.{},team.ilike.{}".format(
+                ilike, ilike, ilike, ilike, ilike, ilike
+            )
+        )
     total = (cq.execute().count or 0)
     pages = max(1, math.ceil(total / EVENTS_PER_PAGE)) if total > 0 else 1
     return min(max(1, page), pages)
@@ -258,24 +284,39 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     # ----- Header -----
     with gr.Row(elem_classes="kalli-header"):
         if os.path.exists(LOGO_PATH):
-            gr.Image(LOGO_PATH, show_label=False, height=40, width=40, container=False)
-        gr.HTML(f"<div><div class='kalli-title'>{APP_TITLE}</div><div class='kalli-subtitle'>{__APP_VERSION__}</div></div>")
+            gr.Image(LOGO_PATH, show_label=False, height=72, width=72, container=False, elem_classes="logo")
+        gr.HTML(
+            f"<div><div class='title'>{APP_TITLE}</div><div class='kalli-subtitle'>{__APP_VERSION__}</div></div>"
+        )
+
+    # Optional: Ticker (Platzhalter)
+    with gr.Row(elem_classes="ticker-row"):
+        gr.HTML(
+            "<div>Aktuelle Hinweise: Termine können sich kurzfristig ändern. Bitte PDF/Link prüfen.</div>"
+        )
 
     # ----- Tipp des Tages -----
-    with gr.Row():
+    with gr.Row(elem_classes="tip-slot"):
         tipp_md = gr.Markdown(visible=False)
         tipp_btn = gr.HTML(visible=False)
-    gr.HTML('<div style="height:1px;background:#3a3a3a;margin:8px 0 14px;border-radius:1px;"></div>')
+    gr.HTML(
+        '<div style="height:1px;background:#3a3a3a;margin:8px 0 14px;border-radius:1px;"></div>'
+    )
 
     # ----- Section: Veranstaltungen -----
     gr.Markdown("## Veranstaltungen")
 
     # ----- Filterleiste -----
     with gr.Row(elem_id="filterbar"):
-        suchfeld = gr.Textbox(label="🔎 Suche", placeholder="z. B. Stammtisch, Infostand … (min. 2 Zeichen)")
+        suchfeld = gr.Textbox(
+            label="🔎 Suche",
+            placeholder="z. B. Stammtisch, Infostand … (min. 2 Zeichen)",
+        )
         clear_search = gr.Button("❌", elem_id="btn-clear", scale=0, min_width=48)
         show_all = gr.Checkbox(label="Alle Termine zeigen", value=False)
-        start_date_inp = gr.DateTime(label="Ab Datum", include_time=False, type="string", info="leer = Standard (nur kommende)")
+        start_date_inp = gr.DateTime(
+            label="Ab Datum", include_time=False, type="string", info="leer = Standard (nur kommende)"
+        )
 
     # ----- Navigation & Print -----
     with gr.Row(elem_classes="kalli-actions"):
@@ -283,18 +324,22 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         next_btn = gr.Button("Weiter ➡️")
         print_btn = gr.Button("🖨 Drucken", elem_id="btn-print")
 
+    # Primäre Lösung: Event-Kette (User-Event → JS)
     print_evt = print_btn.click(fn=lambda: None, inputs=None, outputs=None, queue=False)
     print_evt.then(
         fn=None,
         js="try{if(document.activeElement){document.activeElement.blur();}}catch(e){} window.print();",
-        queue=False
+        queue=False,
     )
 
-    # Fallback: direkter JS-Listener am Button (manche Gradio-Builds droppen js= am Event)
+    # Fallback: direkter DOM-Listener für den Button (falls Gradio js= droppt)
     demo.load(
         fn=None,
-        js="(()=>{const el=document.getElementById('btn-print');if(!el)return;el.addEventListener('click',()=>{try{if(document.activeElement){document.activeElement.blur();}}catch(e){} window.print();},{once:false});})()",
-        queue=False
+        js=(
+            "(()=>{const el=document.getElementById('btn-print');if(!el)return;"
+            "el.addEventListener('click',()=>{try{if(document.activeElement){document.activeElement.blur();}}catch(e){} window.print();},{once:false});})()"
+        ),
+        queue=False,
     )
 
     # ----- Outputs -----
@@ -305,10 +350,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
     # ----- Handler: do_search -----
     def do_search(q, show_all, start_date_val):
-        """Search handler.
-        Normalisiert die Query (min. 2 Zeichen), ruft die Datenabfrage auf
-        und setzt gleichzeitig den internen Zustand (q_state, current_page).
-        """
+        """Search handler: normalisiert Query, lädt Seite 1, setzt State."""
         qs = (q or "").strip()
         if qs and len(qs) < 2:
             md, info, _, _ = search_page("", 1, show_all, start_date_val)
@@ -318,60 +360,80 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
     # ----- Handler: Navigation -----
     def go_back(q, page, show_all, start_date_val):
-        """Navigiert eine Seite zurück (sofern vorhanden) und clamped Page-Index.
-        Gibt gerenderte Markdown-Liste, Page-Info und die neue Seite zurück.
-        """
-        p = _clamp_page_for(q, max(1, page-1), show_all, start_date_val)
-        md, info, q2, p2 = search_page(q, p, show_all, start_date_val)
+        p = _clamp_page_for(q, max(1, page - 1), show_all, start_date_val)
+        md, info, _, p2 = search_page(q, p, show_all, start_date_val)
         return md, info, p2
 
     def go_next(q, page, show_all, start_date_val):
-        """Navigiert eine Seite vor (sofern vorhanden) und clamped Page-Index.
-        Gibt gerenderte Markdown-Liste, Page-Info und die neue Seite zurück.
-        """
-        p = _clamp_page_for(q, page+1, show_all, start_date_val)
-        md, info, q2, p2 = search_page(q, p, show_all, start_date_val)
+        p = _clamp_page_for(q, page + 1, show_all, start_date_val)
+        md, info, _, p2 = search_page(q, p, show_all, start_date_val)
         return md, info, p2
 
     # ----- Handler: Clear Search -----
     def clear_search_fn(show_all, start_date_val):
-        """Setzt Suchfeld und Seite zurück und lädt Standardliste (kommende Termine).
-        Liefert außerdem einen leeren q_state, damit Navigation konsistent bleibt.
-        """
         md, info, _, _ = search_page("", 1, show_all, start_date_val)
         return md, info, "", 1, ""
 
     # ----- Hooks -----
-    suchfeld.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
-    show_all.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
-    start_date_inp.change(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
+    suchfeld.change(
+        fn=do_search,
+        inputs=[suchfeld, show_all, start_date_inp],
+        outputs=[output_box, page_info, q_state, current_page],
+    ).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
 
-    back_btn.click(fn=go_back, inputs=[q_state, current_page, show_all, start_date_inp], outputs=[output_box, page_info, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
-    next_btn.click(fn=go_next, inputs=[q_state, current_page, show_all, start_date_inp], outputs=[output_box, page_info, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
-    clear_search.click(fn=clear_search_fn, inputs=[show_all, start_date_inp], outputs=[output_box, page_info, suchfeld, current_page, q_state]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
+    show_all.change(
+        fn=do_search,
+        inputs=[suchfeld, show_all, start_date_inp],
+        outputs=[output_box, page_info, q_state, current_page],
+    ).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
+
+    start_date_inp.change(
+        fn=do_search,
+        inputs=[suchfeld, show_all, start_date_inp],
+        outputs=[output_box, page_info, q_state, current_page],
+    ).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
+
+    back_btn.click(
+        fn=go_back,
+        inputs=[q_state, current_page, show_all, start_date_inp],
+        outputs=[output_box, page_info, current_page],
+    ).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
+
+    next_btn.click(
+        fn=go_next,
+        inputs=[q_state, current_page, show_all, start_date_inp],
+        outputs=[output_box, page_info, current_page],
+    ).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
+
+    clear_search.click(
+        fn=clear_search_fn,
+        inputs=[show_all, start_date_inp],
+        outputs=[output_box, page_info, suchfeld, current_page, q_state],
+    ).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
 
     # ----- Initial Load -----
-    demo.load(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page])
+    demo.load(
+        fn=do_search,
+        inputs=[suchfeld, show_all, start_date_inp],
+        outputs=[output_box, page_info, q_state, current_page],
+    )
 
     # ----- Tipp Init -----
     def init_tipp():
-        """Lädt den 'Tipp des Tages' aus Supabase und zeigt optional einen CTA-Button.
-        Gibt zwei Komponenten-Updates zurück: Markdown-Inhalt und CTA-HTML.
-        """
+        """Lädt den Tipp des Tages und optionalen CTA."""
         row = load_tipp(supabase)
         if not row:
             return gr.update(visible=False), gr.update(visible=False)
-        md = f"""### {row['title']}
-
-{row.get('body', '') or ''}"""
+        md = f"""### {row['title']}\n\n{row.get('body', '') or ''}"""
         btn = tipp_chip_html(row)
         return gr.update(value=md, visible=True), gr.update(value=btn, visible=bool(btn))
 
     demo.load(fn=init_tipp, outputs=[tipp_md, tipp_btn], queue=False)
 
+# ----- Launch-Options -----
 if __name__ == "__main__":
     # Für Deployment (Render, Docker etc.):
-    #demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    # demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
 
     # Für lokalen Test:
     demo.launch()
