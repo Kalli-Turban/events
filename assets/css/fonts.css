@@ -1,0 +1,19 @@
+@font-face {
+  font-family: 'MontserratLocal';
+  src: url('../fonts/Montserrat-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MontserratLocal';
+  src: url('../fonts/Montserrat-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+body {
+  font-family: 'MontserratLocal', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
