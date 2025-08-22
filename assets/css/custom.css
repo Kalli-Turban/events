@@ -1,0 +1,96 @@
+
+/* ===============================
+   KalliGPT Frontend – custom.css
+   =============================== */
+
+/* ---- Gradio UI Hygiene ---- */
+#footer, footer {
+  display: none !important;
+}
+
+button[aria-label="Herunterladen"],
+button[aria-label="Vollbild"],
+button[title="Herunterladen"],
+button[title="Vollbild"],
+button[aria-label="Fullscreen"],
+button[title="Fullscreen"] {
+  display: none !important;
+}
+
+/* ---- Kalli Header ---- */
+.kalli-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 12px;
+  background-color: #003366;
+  color: white;
+  overflow-x: visible;
+  white-space: normal;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.kalli-header::-webkit-scrollbar {
+  display: none;
+}
+
+.kalli-header {
+  scrollbar-width: none;
+}
+
+.kalli-title {
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: white;
+}
+
+.kalli-subtitle {
+  font-weight: 500;
+  font-size: 0.95rem;
+  opacity: 0.85;
+  color: white;
+}
+
+.kalli-actions {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.kalli-actions .gr-button {
+  flex: 1 1 200px;
+}
+
+/* ---- Print Layout ---- */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  #kalli-events, #kalli-events * {
+    visibility: visible !important;
+  }
+
+  #kalli-events {
+    position: absolute !important;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .kalli-header, .kalli-actions, #filterbar,
+  .kalli-header *, .kalli-actions *, #filterbar * {
+    display: none !important;
+  }
+
+  [role="tooltip"], [data-testid="tooltip"],
+  .tooltip, .popover {
+    display: none !important;
+  }
+
+  #btn-clear {
+    display: none !important;
+  }
+}
