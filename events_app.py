@@ -39,7 +39,7 @@ from dotenv import load_dotenv
 from supabase import create_client
 
 # ----- App Version -----
-__APP_VERSION__ = "Frontend v2.3 (Print Merged)"
+__APP_VERSION__ = "Frontend v2.4 (mit Zielgruppe)"
 
 # ----- Supabase Setup -----
 load_dotenv()
@@ -181,8 +181,6 @@ def format_event_card(event: dict) -> str:
     if kategorie:
         location_line = (location_line + " | " if location_line else "") + f"Kategorie: {kategorie}"
 
-    #access_line = f"🔐 Zugang: {event_level}" if event_level else ""
-
     link_block = f"🔗 [Mehr erfahren]({link})" if link else ""
     pdf_block = f"📄 [PDF anzeigen]({pdf_url})" if pdf_url else ""
 
@@ -203,9 +201,7 @@ def format_event_card(event: dict) -> str:
 {level_html}
 {meta_line}  
 {location_line}
-
 {beschreibung}
-
 {footer_line}
 """.strip("\n")
     return md
