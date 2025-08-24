@@ -200,8 +200,11 @@ def format_event_card(event: dict) -> str:
 ### 📌 {titel}
 {level_html}
 {meta_line}  
+
 {location_line}
+
 {beschreibung}
+
 {footer_line}
 """.strip("\n")
     return md
