@@ -1,6 +1,6 @@
 # ============================================================
 #  Events-Frontend
-#  V2.4 (2025-08-24) neues Feld für Zielgruppe event_level mit CSS 
+#
 #- v2.3 (2025-08-22) [KI+Kalli]
 #    • CSS komplett ins Hauptscript zurückgeführt
 #    • Logo responsive & skalierbar
@@ -75,7 +75,7 @@ button[aria-label="Fullscreen"], button[title="Fullscreen"] { display:none !impo
 .kalli-actions { gap:12px; flex-wrap:wrap; }
 .kalli-actions .gr-button { flex: 1 1 200px; }
 .logo img { width:80px; height:80px; border-radius:50%; object-fit:cover; }
-.kalli-event-level { font-weight: bold; color: #555; margin-bottom: 6px; }
+
 
 @media print {
   body * { visibility: hidden !important; }
@@ -144,7 +144,6 @@ def tipp_chip_html(row):
     return f'<a href="{url}" target="_blank" rel="noopener" style="display:inline-block;padding:8px 12px;border:1px solid #888;border-radius:999px;text-decoration:none;font-weight:600;">💡 {label}</a>'
 
 # ----- Event-Karte Rendering -----
-
 def format_event_card(event: dict) -> str:
     titel = event.get("titel", "") or ""
     datum = event.get("datum", "") or ""
@@ -153,9 +152,6 @@ def format_event_card(event: dict) -> str:
     ort = event.get("ort", "") or ""
     kategorie = event.get("kategorie", "") or ""
     beschreibung = event.get("beschreibung", "") or ""
-    level = (event.get("event_level") or "").strip()
-    level_line = f"🟢 Offenes Event? *{level}*" if level else ""
-    level_html = f'<div class="kalli-event-level">🟢 Offenes Event? <strong>{level}</strong></div>' if level else ""
     link = event.get("link")
     pdf_url = event.get("pdf_url")
 
@@ -181,8 +177,6 @@ def format_event_card(event: dict) -> str:
     if kategorie:
         location_line = (location_line + " | " if location_line else "") + f"Kategorie: {kategorie}"
 
-    #access_line = f"🔐 Zugang: {event_level}" if event_level else ""
-
     link_block = f"🔗 [Mehr erfahren]({link})" if link else ""
     pdf_block = f"📄 [PDF anzeigen]({pdf_url})" if pdf_url else ""
 
@@ -200,7 +194,6 @@ def format_event_card(event: dict) -> str:
 
     md = f"""
 ### 📌 {titel}
-{level_html}
 {meta_line}  
 {location_line}
 
