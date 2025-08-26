@@ -228,7 +228,7 @@ def load_tipp(sb):
     except Exception:
         return None
 
-# ----- CTA URL Resolver -----
+# ----- CTA URL Resolver TIPP-DB -----
 def resolve_cta_url(row):
     kind = (row.get("cta_kind") or "").lower()
     if kind == "external":
@@ -247,7 +247,7 @@ def tipp_chip_html(row):
     url = resolve_cta_url(row)
     if not url:
         return ""
-    label = (row.get("cta_label") or "Mehr lesen") + " ↗"
+    label = (row.get("cta_label") or "Mehr Infos") + " ↗"
     return f'<a href="{url}" target="_blank" rel="noopener" style="display:inline-block;padding:8px 12px;border:1px solid #888;border-radius:999px;text-decoration:none;font-weight:600;">💡 {label}</a>'
 
 # ----- Event-Karte Rendering -----
@@ -503,7 +503,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         row = load_tipp(supabase)
         if not row:
             return gr.update(visible=False), gr.update(visible=False)
-        md = f"""### {row['title']}
+        md = f"""### Mein Tipp: {row['title']}
 
 {row.get('body', '') or ''}"""
         btn = tipp_chip_html(row)
