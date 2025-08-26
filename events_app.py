@@ -285,15 +285,13 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
 
  # Optional: Ticker (Platzhalter)
-    with gr.Row(elem_classes="ticker-row"):
-        gr.HTML(
-            "<div>Aktuelle Hinweise: Termine können sich kurzfristig ändern. Angaben daher ohne Gewähr!"
-        )
-
-
+   # with gr.Row(elem_classes="ticker-row"):
+   #     gr.HTML(
+   #         "<div>Aktuelle Hinweise: Termine können sich kurzfristig ändern. Angaben daher ohne Gewähr!"
+   #     )
 
     # ----- Section: Veranstaltungen -----
-    gr.Markdown("## Veranstaltungen")
+    gr.Markdown("## Veranstaltungen - Angaben ohne Gewähr!")
 
     # ----- Filterleiste -----
     with gr.Row(elem_id="filterbar"):
