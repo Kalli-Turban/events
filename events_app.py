@@ -49,8 +49,8 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ----- Konstanten -----
 EVENTS_PER_PAGE = 6
-APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der AfD in Berlin"
-LOGO_PATH = "assets/kalli_logo.png"
+APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der Alternative für Deutschland"
+LOGO_PATH = "assets/logo_160_80.png"
 
 # ----- Zeit / Datum -----
 def today_berlin() -> str:
@@ -74,7 +74,7 @@ button[aria-label="Fullscreen"], button[title="Fullscreen"] { display:none !impo
 .kalli-subtitle { font-weight:500; font-size:0.9rem; opacity:0.8; }
 .kalli-actions { gap:12px; flex-wrap:wrap; }
 .kalli-actions .gr-button { flex: 1 1 200px; }
-.logo img { width:80px; height:80px; border-radius:50%; object-fit:cover; }
+.logo img { width:160px; height:80px; border-radius:10%; object-fit:cover; }
 .kalli-event-level { font-weight: bold; color: #555; margin-bottom: 6px; }
 
 @media print {
