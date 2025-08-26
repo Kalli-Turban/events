@@ -1,0 +1,19 @@
+BEGIN:VCALENDAR
+PRODID:-//Kalli Events//DE
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:event-999@turban-direkt.de
+DTSTAMP:20250825T094730Z
+DTSTART;TZID=Europe/Berlin:20250901T190000
+DTEND;TZID=Europe/Berlin:20250901T210000
+SUMMARY:Test: Stammtisch Marienfelde
+LOCATION:Bose Eck\, Berlin
+DESCRIPTION:Offener Austausch mit Kalli\\nhttps://turban-direkt.de/events/9
+ 99
+URL:https://turban-direkt.de/events/999
+CATEGORIES:Politik\,Stammtisch
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR
