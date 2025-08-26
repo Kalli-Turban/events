@@ -291,7 +291,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
    #     )
 
     # ----- Section: Veranstaltungen -----
-    gr.Markdown("## Veranstaltungen - Angaben ohne Gewähr!")
+    gr.Markdown("## Veranstaltungen -Teilnehmerkreis beachten - Angaben ohne Gewähr!")
 
     # ----- Filterleiste -----
     with gr.Row(elem_id="filterbar"):
