@@ -1,8 +1,7 @@
 # ============================================================
 #  Events-Frontend
-#   - V2.5 (2025-08-25) ics-Download
-#   - V2.4 (2025-08-24) neues Feld für Zielgruppe event_level mit CSS 
-#   - v2.3 (2025-08-22) [KI+Kalli]
+#  V2.4 (2025-08-24) neues Feld für Zielgruppe event_level mit CSS 
+#- v2.3 (2025-08-22) [KI+Kalli]
 #    • CSS komplett ins Hauptscript zurückgeführt
 #    • Logo responsive & skalierbar
 #    • Header-Farbe auf Himmelblau geändert
@@ -32,8 +31,6 @@
 import os
 import math
 import re
-import sys
-import tempfile # für ics-Download
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -44,15 +41,6 @@ from supabase import create_client
 # ----- App Version -----
 __APP_VERSION__ = "Frontend v2.4 (mit Zielgruppe)"
 
-header_md = f"""
-# 🚀 {__APP_VERSION__}
-- **Gradio:** {gr.__version__}
-- **Python:** {sys.version.split()[0]}
-"""
-
-#with gr.Blocks() as demo:
-#    gr.Markdown(header_md)
-
 # ----- Supabase Setup -----
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -61,9 +49,8 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ----- Konstanten -----
 EVENTS_PER_PAGE = 6
-APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der AfD in Berlin"
+APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der Alternative für Deutschland"
 LOGO_PATH = "assets/logo_160_80.png"
-TZID = "Europe/Berlin"
 
 # ----- Zeit / Datum -----
 def today_berlin() -> str:
@@ -90,7 +77,6 @@ button[aria-label="Fullscreen"], button[title="Fullscreen"] { display:none !impo
 .logo img { width:160px; height:80px; border-radius:10%; object-fit:cover; }
 .kalli-event-level { font-weight: bold; color: #555; margin-bottom: 6px; }
 
-
 @media print {
   body * { visibility: hidden !important; }
   #kalli-events, #kalli-events * { visibility: visible !important; }
@@ -108,101 +94,15 @@ button[aria-label="Fullscreen"], button[title="Fullscreen"] { display:none !impo
 """
 
 # =============================
-# BLOCK 2 — Tipp-Bereich & Event-Card Rendering
+# BLOCK 1a — ICS-Helper
 # =============================
 
-# ----- ics -----
-
-def make_event_ics(ev: dict) -> str:
-    """
-    Erwartet ev = {
-      'id': 123,
-      'title': 'Titel',
-      'start_time': datetime(..., tzinfo=... optional),
-      'end_time': datetime(..., tzinfo=... optional) | None,
-      'location': 'Ort',
-      'description': 'Text',
-      'url': 'https://…' (optional),
-      'categories': ['Politik','…'] (optional)
-    }
-    Gibt einen kompletten .ics-String mit genau EINEM VEVENT zurück.
-    """
-    uid = f"event-{ev['id']}@turban-direkt.de"
-    now_utc = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-
-    lines = [
-        "BEGIN:VCALENDAR",
-        "PRODID:-//Kalli Events//DE",
-        "VERSION:2.0",
-        "CALSCALE:GREGORIAN",
-        "METHOD:PUBLISH",
-        "BEGIN:VEVENT",
-        f"UID:{uid}",
-        f"DTSTAMP:{now_utc}",
-        f"DTSTART{_format_dt_local(ev['start_time'])}",
-    ]
-
-    if ev.get("end_time"):
-        lines.append(f"DTEND{_format_dt_local(ev['end_time'])}")
-
-    # Pflicht/empfohlen
-    lines.append(f"SUMMARY:{_ics_escape(ev.get('title',''))}")
-    if ev.get("location"):
-        lines.append(f"LOCATION:{_ics_escape(ev['location'])}")
-
-    # Beschreibung + Link in DESCRIPTION; URL separat auch nice
-    desc_parts = []
-    if ev.get("description"):
-        desc_parts.append(str(ev["description"]))
-    if ev.get("url"):
-        desc_parts.append(str(ev["url"]))
-    if desc_parts:
-        lines.append(f"DESCRIPTION:{_ics_escape('\\n'.join(desc_parts))}")
-    if ev.get("url"):
-        lines.append(f"URL:{_ics_escape(ev['url'])}")
-
-    if ev.get("categories"):
-        cats = ",".join(ev["categories"])
-        lines.append(f"CATEGORIES:{_ics_escape(cats)}")
-
-    lines += [
-        "STATUS:CONFIRMED",
-        "END:VEVENT",
-        "END:VCALENDAR",
-    ]
-
-    # Falten + CRLF
-    folded = []
-    for ln in lines:
-        folded.extend(_fold(ln))
-    return "\r\n".join(folded) + "\r\n"
-
-
-def download_event_ics(ev: dict):
-    ics = make_event_ics(ev)  # Funktion, die den Text wie eben baut
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".ics")
-    tmp.write(ics.encode("utf-8"))
-    tmp.close()
-    return tmp.name  # Gradio gibt diese Datei direkt aus
 
 
 
-def _fold(line: str, maxlen: int = 75) -> list[str]:
-    # Faltet lange Zeilen (Outlook/Apple mögen das)
-    chunks, first = [], True
-    while len(line) > maxlen:
-        chunks.append(line[:maxlen])
-        line = " " + line[maxlen:]  # Fortsetzungszeile beginnt mit Leerzeichen
-        first = False
-    chunks.append(line)
-    return chunks
-
-def _format_dt_local(dt: datetime, tzid: str = TZID) -> str:
-    """Formatiert lokale Zeit mit TZID=… (schön lesbar in Kalendern)."""
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=ZoneInfo(tzid))
-    local = dt.astimezone(ZoneInfo(tzid))
-    return f";TZID={tzid}:{local.strftime('%Y%m%dT%H%M%S')}"
+# =============================
+# BLOCK 2 — Tipp-Bereich & Event-Card Rendering
+# =============================
 
 # ----- Tipp-Helpers -----
 def _public_url(res):
@@ -228,7 +128,7 @@ def load_tipp(sb):
     except Exception:
         return None
 
-# ----- CTA URL Resolver TIPP-DB -----
+# ----- CTA URL Resolver -----
 def resolve_cta_url(row):
     kind = (row.get("cta_kind") or "").lower()
     if kind == "external":
@@ -278,7 +178,6 @@ def format_event_card(event: dict) -> str:
         else:
             registration_block = f"**✍️ Anmeldung erforderlich**"
 
-
     meta_line = f"🗓️ {datum}"
     if uhrzeit:
         meta_line += f" ⏰ {uhrzeit}"
@@ -288,7 +187,6 @@ def format_event_card(event: dict) -> str:
     location_line = f"📍 {ort}" if (show_location and ort) else ""
     if kategorie:
         location_line = (location_line + " | " if location_line else "") + f"Kategorie: {kategorie}"
-
 
     link_block = f"🔗 [Mehr erfahren]({link})" if link else ""
     pdf_block = f"📄 [PDF anzeigen]({pdf_url})" if pdf_url else ""
@@ -381,19 +279,10 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     # ----- Header -----
     with gr.Row(elem_classes="kalli-header"):
         if os.path.exists(LOGO_PATH):
+            #gr.Image(LOGO_PATH, show_label=False, height=40, width=40, container=False)
             gr.Image(LOGO_PATH, show_label=False, container=False, elem_classes="logo")
 
         gr.HTML(f"<div><div class='kalli-title'>{APP_TITLE}</div><div class='kalli-subtitle'>{__APP_VERSION__}</div></div>")
-        #gr.HTML(f"<div><div class='kalli-title'>{gr.__version__}</div><div class='kalli-subtitle'>{sys.version.split()[0]}</div></div>")
-
-    #gr.HTML(f"""
-    #    <div>
-    #        <div class='kalli-title'>{APP_TITLE}</div>
-    #        <div class='kalli-subtitle'>{__APP_VERSION__}</div>
-    #        <div class='kalli-title'>{gr.__version__}</div>
-    #        <div class='kalli-subtitle'>{sys.version.split()[0]}</div>
-    #    </div>
-    #""")
 
     # ----- Tipp des Tages -----
     with gr.Row():
@@ -403,14 +292,13 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
 
  # Optional: Ticker (Platzhalter)
-    with gr.Row(elem_classes="ticker-row"):
-        gr.HTML(
-            "<div>Aktuelle Hinweise: Termine können sich kurzfristig ändern. Angaben daher ohne Gewähr!"
-        )
-
+   # with gr.Row(elem_classes="ticker-row"):
+   #     gr.HTML(
+   #         "<div>Aktuelle Hinweise: Termine können sich kurzfristig ändern. Angaben daher ohne Gewähr!"
+   #     )
 
     # ----- Section: Veranstaltungen -----
-    gr.Markdown("## Veranstaltungen")
+    gr.Markdown("## Veranstaltungen -Teilnehmerkreis beachten - Angaben ohne Gewähr!")
 
     # ----- Filterleiste -----
     with gr.Row(elem_id="filterbar"):
@@ -504,7 +392,9 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         row = load_tipp(supabase)
         if not row:
             return gr.update(visible=False), gr.update(visible=False)
+        # md = f"""### {row['title']}
         md = f"""### Mein Tipp: {row['title']}
+
 
 {row.get('body', '') or ''}"""
         btn = tipp_chip_html(row)
@@ -514,7 +404,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
 if __name__ == "__main__":
     # Für Deployment (Render, Docker etc.):
-    #demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
 
     # Für lokalen Test:
-    demo.launch()
+    #demo.launch()
