@@ -1,6 +1,6 @@
 # ============================================================
 #  Events-Frontend
-#
+#  V2.4 (2025-08-24) neues Feld für Zielgruppe event_level mit CSS 
 #- v2.3 (2025-08-22) [KI+Kalli]
 #    • CSS komplett ins Hauptscript zurückgeführt
 #    • Logo responsive & skalierbar
@@ -39,7 +39,7 @@ from dotenv import load_dotenv
 from supabase import create_client
 
 # ----- App Version -----
-__APP_VERSION__ = "Frontend v2.3 (Print Merged)"
+__APP_VERSION__ = "Frontend v2.4 (mit Zielgruppe)"
 
 # ----- Supabase Setup -----
 load_dotenv()
@@ -49,8 +49,8 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ----- Konstanten -----
 EVENTS_PER_PAGE = 6
-APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der AfD in Berlin"
-LOGO_PATH = "assets/kalli_logo.png"
+APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der Alternative für Deutschland"
+LOGO_PATH = "assets/logo_160_80.png"
 
 # ----- Zeit / Datum -----
 def today_berlin() -> str:
@@ -74,8 +74,8 @@ button[aria-label="Fullscreen"], button[title="Fullscreen"] { display:none !impo
 .kalli-subtitle { font-weight:500; font-size:0.9rem; opacity:0.8; }
 .kalli-actions { gap:12px; flex-wrap:wrap; }
 .kalli-actions .gr-button { flex: 1 1 200px; }
-.logo img { width:80px; height:80px; border-radius:50%; object-fit:cover; }
-
+.logo img { width:160px; height:80px; border-radius:10%; object-fit:cover; }
+.kalli-event-level { font-weight: bold; color: #555; margin-bottom: 6px; }
 
 @media print {
   body * { visibility: hidden !important; }
@@ -140,10 +140,11 @@ def tipp_chip_html(row):
     url = resolve_cta_url(row)
     if not url:
         return ""
-    label = (row.get("cta_label") or "Mehr lesen") + " ↗"
+    label = (row.get("cta_label") or "Mehr Infos") + " ↗"
     return f'<a href="{url}" target="_blank" rel="noopener" style="display:inline-block;padding:8px 12px;border:1px solid #888;border-radius:999px;text-decoration:none;font-weight:600;">💡 {label}</a>'
 
 # ----- Event-Karte Rendering -----
+
 def format_event_card(event: dict) -> str:
     titel = event.get("titel", "") or ""
     datum = event.get("datum", "") or ""
@@ -152,6 +153,9 @@ def format_event_card(event: dict) -> str:
     ort = event.get("ort", "") or ""
     kategorie = event.get("kategorie", "") or ""
     beschreibung = event.get("beschreibung", "") or ""
+    level = (event.get("event_level") or "").strip()
+    level_line = f"🟢 Offenes Event? *{level}*" if level else ""
+    level_html = f'<div class="kalli-event-level">🟢 Offenes Event? <strong>{level}</strong></div>' if level else ""
     link = event.get("link")
     pdf_url = event.get("pdf_url")
 
@@ -194,7 +198,9 @@ def format_event_card(event: dict) -> str:
 
     md = f"""
 ### 📌 {titel}
+{level_html}
 {meta_line}  
+
 {location_line}
 
 {beschreibung}
@@ -279,25 +285,32 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
 
  # Optional: Ticker (Platzhalter)
-    with gr.Row(elem_classes="ticker-row"):
-        gr.HTML(
-            "<div>Aktuelle Hinweise: Termine können sich kurzfristig ändern. Angaben daher ohne Gewähr!"
-        )
-
-
+   # with gr.Row(elem_classes="ticker-row"):
+   #     gr.HTML(
+   #         "<div>Aktuelle Hinweise: Termine können sich kurzfristig ändern. Angaben daher ohne Gewähr!"
+   #     )
 
     # ----- Section: Veranstaltungen -----
-    gr.Markdown("## Veranstaltungen")
+    gr.Markdown("## Veranstaltungen -Teilnehmerkreis beachten - Angaben ohne Gewähr!")
 
     # ----- Filterleiste -----
     with gr.Row(elem_id="filterbar"):
-        suchfeld = gr.Textbox(label="🔎 Suche", placeholder="z. B. Stammtisch, Infostand … (min. 2 Zeichen)")
-        clear_search = gr.Button("❌", elem_id="btn-clear", scale=0, min_width=48)
-        show_all = gr.Checkbox(label="Alle Termine zeigen", value=False)
+
+        suchfeld = gr.Textbox(label="🔎 Suche", placeholder="z.B. Stammtisch, Infostand … (min.2 Zeichen)", lines=1, max_lines=1)
+        show_all = gr.CheckboxGroup(
+            choices=["Alle Termine zeigen"],
+            label="",          # kein extra Label
+            type="value",
+            container=False
+        )
+
+
+        #show_all = gr.Checkbox(info="Alle Termine zeigen", value=False,elem_classes=["checkbox-fix"])
         start_date_inp = gr.DateTime(label="Ab Datum", include_time=False, type="string", info="leer = Standard (nur kommende)")
 
     # ----- Navigation & Print -----
     with gr.Row(elem_classes="kalli-actions"):
+        clear_search = gr.Button("❌", elem_id="btn-clear", scale=0, min_width=48)
         back_btn = gr.Button("⬅️ Zurück")
         next_btn = gr.Button("Weiter ➡️")
         print_btn = gr.Button("🖨 Drucken", elem_id="btn-print")
@@ -380,7 +393,9 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         row = load_tipp(supabase)
         if not row:
             return gr.update(visible=False), gr.update(visible=False)
-        md = f"""### {row['title']}
+        # md = f"""### {row['title']}
+        md = f"""### Mein Tipp: {row['title']}
+
 
 {row.get('body', '') or ''}"""
         btn = tipp_chip_html(row)
@@ -390,7 +405,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
 if __name__ == "__main__":
     # Für Deployment (Render, Docker etc.):
-    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    #demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
 
     # Für lokalen Test:
-    #demo.launch()
+    demo.launch()

@@ -295,9 +295,16 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
     # ----- Filterleiste -----
     with gr.Row(elem_id="filterbar"):
-        suchfeld = gr.Textbox(label="🔎 Suche", placeholder="z. B. Stammtisch, Infostand … (min. 2 Zeichen)")
-        #clear_search = gr.Button("❌", elem_id="btn-clear", scale=0, min_width=48)
-        show_all = gr.Checkbox(label="Alle Termine zeigen", value=False)
+        suchfeld = gr.Textbox(label="🔎 Suche", placeholder="z.B. Stammtisch, Infostand … (min.2 Zeichen)", lines=1, max_lines=1)
+        #suchfeld = gr.Textbox(label="🔎 Suche", placeholder="z. B. Stammtisch, Infostand … (min. 2 Zeichen)")
+        #show_all = gr.Checkbox(label="Alle Termine zeigen", value=False)
+
+        show_all = gr.CheckboxGroup(
+        choices=["Alle Termine zeigen"],
+        label="",          # kein extra Label
+        type="value",
+        container=False
+    )
         start_date_inp = gr.DateTime(label="Ab Datum", include_time=False, type="string", info="leer = Standard (nur kommende)")
 
     # ----- Navigation & Print -----

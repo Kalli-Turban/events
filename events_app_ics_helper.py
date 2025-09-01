@@ -22,7 +22,6 @@
 #  Autoren: KI + Kalli
 # ============================================================
 
-
 # =============================
 # BLOCK 1 — Header & Setup
 # =============================
@@ -97,8 +96,151 @@ button[aria-label="Fullscreen"], button[title="Fullscreen"] { display:none !impo
 # BLOCK 1a — ICS-Helper
 # =============================
 
+# slugify(text): hübsche Dateinamen (ASCII, Bindestriche).
+#ics_escape(text): RFC5545-Escapes für Summary/Location/Des#cription/URL.
+#to_utc_z(iso_ts): ISO → YYYYMMDDTHHMMSSZ in UTC.
+#derive_times_from_event(ev): robustes Start/Ende aus start_iso/end_iso oder aus datum/uhrzeit/dauer (Berlin-TZ, Default 120 min).
+#build_ics_event(ev, prodid=...): baut die .ics (ein VEVENT).
+#ics_filename_for_event(ev): <slug>_<YYYY-MM-DD>.ics
+# Diese Helfer bauen eine .ics (ein einzelnes VEVENT) für ein Event-Dict.
+# Sie sind bewusst unabhängig vom UI (Markdown/Buttons/Route), damit wir sie
+# überall wiederverwendbar nutzen können (HTTP-Route, Gradio-DownloadButton, Batch-Export).
+
+from datetime import timedelta  # Ergänzung lokal, damit globaler Import unberührt bleibt
+import unicodedata
+
+def slugify(text: str) -> str:
+    """
+    ASCII-Slug für Dateinamen/UID-Bestandteile.
+    z. B. "Bürgerdialog Neue Mitte" -> "burgerdialog-neue-mitte"
+    """
+    s = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode("ascii")
+    s = re.sub(r"[^a-zA-Z0-9]+", "-", s).strip("-").lower()
+    return s or "event"
+
+def ics_escape(text: str) -> str:
+    """RFC5545-Escapes für Kommata, Semikolon, Backslash und Zeilenumbrüche."""
+    return (text or "").replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", "\\n")
+
+def to_utc_z(iso_ts: str) -> str:
+    """ISO-String (mit/ohne TZ) -> UTC im Format YYYYMMDDTHHMMSSZ."""
+    dt = datetime.fromisoformat(iso_ts)
+    if dt.tzinfo is None:
+        dt = dt.astimezone()  # lokale TZ annehmen (System)
+    return dt.astimezone(ZoneInfo("UTC")).strftime("%Y%m%dT%H%M%SZ")
+
+def derive_times_from_event(ev: dict) -> tuple[bool, str, str]:
+    """
+    Leitet Start/Ende her (mit robusten Fallbacks).
+
+    Rückgabe:
+      (all_day, start_repr, end_repr)
+      -> all_day == True  => reprs sind 'YYYY-MM-DD'
+      -> all_day == False => reprs sind ISO-Timestamps
+
+    Logik:
+      1) Wenn 'start_iso'/'end_iso' im Datensatz: nimm die direkt.
+      2) Sonst aus 'datum' + 'uhrzeit' + 'dauer' heuristisch (Berlin TZ).
+      3) Wenn keine Uhrzeit da ist: behandle als Ganztag.
+    """
+    start_iso = ev.get("start_iso")
+    end_iso   = ev.get("end_iso")
+    if start_iso and end_iso:
+        return False, start_iso, end_iso
+
+    datum = (ev.get("datum") or "")[:10]  # 'YYYY-MM-DD'
+    uhr   = (ev.get("uhrzeit") or "").strip()
+
+    if datum and uhr:
+        # Uhrzeit parsen (best effort)
+        try:
+            hh, mm = [int(x) for x in uhr.split(":")[:2]]
+        except Exception:
+            hh, mm = 9, 0
+        start_dt = datetime(
+            int(datum[:4]), int(datum[5:7]), int(datum[8:10]),
+            hh, mm, tzinfo=ZoneInfo("Europe/Berlin")
+        )
+        # Dauer erkennen (z. B. "90 min" oder "2h"); Default 120min
+        dur = (ev.get("dauer") or "").strip().lower()
+        mins = 120
+        m = re.search(r"(\d+)\s*(min|minute|minuten)", dur)
+        h = re.search(r"(\d+)\s*(h|std|stunde|stunden)", dur)
+        if h:
+            mins = int(h.group(1)) * 60
+        elif m:
+            mins = int(m.group(1))
+        end_dt = start_dt + timedelta(minutes=mins)
+        return False, start_dt.isoformat(), end_dt.isoformat()
+
+    # Fallback: Ganztag des Datums
+    return True, datum, datum
 
 
+def build_ics_event(ev: dict, *, prodid: str = "-//Kalli Events//DE") -> bytes:
+    """
+    Baut eine minimal saubere ICS (ein VEVENT) aus einem Event-Dict.
+
+    Erwartete Felder (so weit vorhanden):
+      - id (str|int)
+      - titel / title
+      - datum (YYYY-MM-DD)
+      - uhrzeit (optional, HH:MM)
+      - dauer (optional, z. B. "90 min", "2h")
+      - ort, beschreibung, link/pdf_url (optional)
+      - optional: start_iso, end_iso (ISO 8601, mit/ohne TZ)
+
+    Rückgabe: bytes der .ics (UTF-8, CRLF-Zeilenenden).
+    """
+    uid = f"{ev.get('id', 'unknown')}@kalli-events"
+    now = datetime.now(ZoneInfo("UTC")).strftime("%Y%m%dT%H%M%SZ")
+
+    all_day, start_repr, end_repr = derive_times_from_event(ev)
+
+    lines: list[str] = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        f"PRODID:{prodid}",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTAMP:{now}",
+    ]
+
+    if all_day or (len(start_repr) == 10 and len(end_repr) == 10):
+        # Hinweis: RFC-konform wäre DTEND = Folgetag; das implementieren wir bei Bedarf.
+        lines += [
+            f"DTSTART;VALUE=DATE:{start_repr.replace('-', '')}",
+            f"DTEND;VALUE=DATE:{end_repr.replace('-', '')}",
+        ]
+    else:
+        lines += [
+            f"DTSTART:{to_utc_z(start_repr)}",
+            f"DTEND:{to_utc_z(end_repr)}",
+        ]
+
+    summary  = ev.get("titel") or ev.get("title") or "Termin"
+    location = ev.get("ort") or ""
+    desc     = ev.get("beschreibung") or ""
+    url      = ev.get("link") or ev.get("pdf_url") or ""
+
+    lines += [
+        f"SUMMARY:{ics_escape(summary)}",
+        f"LOCATION:{ics_escape(location)}",
+        f"DESCRIPTION:{ics_escape(desc)}",
+        f"URL:{ics_escape(url)}",
+        "END:VEVENT",
+        "END:VCALENDAR",
+        "",
+    ]
+    return "\r\n".join(lines).encode("utf-8")
+
+def ics_filename_for_event(ev: dict) -> str:
+    """Hübscher Dateiname: <slug>_<YYYY-MM-DD>.ics"""
+    title = ev.get("titel") or ev.get("title") or "event"
+    date_ = (ev.get("datum") or "")[:10]
+    return f"{slugify(title)}_{date_}.ics"
 
 # =============================
 # BLOCK 2 — Tipp-Bereich & Event-Card Rendering
@@ -165,7 +307,6 @@ def format_event_card(event: dict) -> str:
     level_html = f'<div class="kalli-event-level">🟢 Offenes Event? <strong>{level}</strong></div>' if level else ""
     link = event.get("link")
     pdf_url = event.get("pdf_url")
-
     requires_registration = bool(event.get("requires_registration") or False)
     email_contact = (event.get("email_contact") or "").strip()
     show_location = bool(event.get("show_location", True))
@@ -216,8 +357,26 @@ def format_event_card(event: dict) -> str:
 """.strip("\n")
     return md
 
+#BASE_PATH = ""  # ggf. später "/events" o.ä.
+#def format_event_card(e: dict) -> str:
+#    md = ""  # ...dein bisheriges Karten-Markdown (Titel, Zeit, Ort, Links)...
+#    ics_href = f"{BASE_PATH}/ics/{e['id']}"
+#    # Klickbarer „Button“ via Link:
+#    md += (
+#        "\n\n"
+#        f'<a href="{ics_href}" download '
+#        'style="display:inline-block;padding:8px 12px;border-radius:10px;'
+#        'background:#1f6feb;color:#fff;text-decoration:none;font-weight:600;">'
+#        '🗓️ ICS herunterladen</a>'
+#    )
+#    # Optional: ID sichtbar (nur zu Debug-Zwecken)
+#    md += f"\n\n<small>ID: <code>{e['id']}</code></small>"
+#    return md
+
+
+
 # =============================
-# BLOCK 3 — Suche & Pagination
+# BLOCK 3 — DB Suche & Pagination
 # =============================
 
 # ----- Tokenizer -----
@@ -239,7 +398,12 @@ def search_page(query: str, page: int, show_all: bool, start_date_val: str | Non
         tbl = tbl.order("datum", desc=False)
         start_idx = max(0, (max(1, page) - 1) * EVENTS_PER_PAGE)
         end_idx = start_idx + EVENTS_PER_PAGE - 1
+        # → sagt: nimm die Tabelle events, hol alle Spalten, zähl mit (count="exact") und filtere nur published = True.
         res = tbl.range(start_idx, end_idx).execute()
+        # >>> IDs der aktuellen Seite extrahieren
+        ids = [ev["id"] for ev in (res.data or [])]
+        print("Aktuelle Event-IDs:", ids)   # Debug ins Terminal
+        # später geben wir diese IDs zusätzlich zurück (event_ids_state)
         data, total = res.data or [], res.count or 0
         pages = max(1, math.ceil(total / EVENTS_PER_PAGE))
         page = min(max(1, page), pages)
@@ -404,7 +568,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
 if __name__ == "__main__":
     # Für Deployment (Render, Docker etc.):
-    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    #demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
 
     # Für lokalen Test:
-    #demo.launch()
+    demo.launch()
