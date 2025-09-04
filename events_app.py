@@ -279,34 +279,15 @@ def _clamp_page_for(q, page, show_all, start_date_val):
 # =============================
 
 CUSTOM_CSS += """
-.kalli-disclaimer-row { display:flex; align-items:center; gap:14px; }
-.kalli-disclaimer-box {
-  background:#ffebcc; color:#333; padding:10px 14px; border:1px solid #e6c07b;
-  border-radius:8px; flex:1;
+.kalli-disclaimer {
+  display:flex; align-items:center; gap:14px;
+  background:#ffebcc; color:#333;
+  padding:10px 14px; border:1px solid #e6c07b; border-radius:8px;
 }
-.kalli-disclaimer-check { white-space:nowrap; }
 @media (max-width:700px){
-  .kalli-disclaimer-row { flex-direction:column; align-items:stretch; }
-  .kalli-disclaimer-check { align-self:flex-end; }
-}
-.kalli-disclaimer-check input[type="checkbox"] {
-  accent-color: #e6c07b;  /* gelblich, passend zum Banner */
+  .kalli-disclaimer { flex-direction:column; align-items:stretch; }
 }
 """
-
-CUSTOM_CSS += """
-.kalli-disclaimer-check {
-  background:#fff3d6;        /* helles Gelb hinter der Checkbox-Zeile */
-  border:1px solid #e6c07b;  /* gelber Rand */
-  border-radius:6px;
-  padding:6px 10px;
-}
-.kalli-disclaimer-check label {
-  color:#333;                /* Textfarbe */
-  font-weight:bold;          /* optional: fett */
-}
-"""
-
 
 
 
@@ -316,25 +297,18 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
 
     # Disclaimer-Row
-    with gr.Row(visible=True, elem_classes="kalli-disclaimer-row") as disclaimer_row:
+    
+    with gr.Row(visible=True, elem_classes="kalli-disclaimer") as disclaimer_box:
         gr.HTML(
-            """
-            <div class="kalli-disclaimer-box">
-            ⚠️ Hinweis: Diese Anwendung lädt Schriften von externen Anbietern (z. B. Google Fonts).
-            Wenn du das nicht möchtest, nutze die App bitte nicht weiter.
-            </div>
-            """
+            "⚠️ Hinweis: Diese Anwendung lädt Schriften von externen Anbietern "
+            "(z. B. Google Fonts). Wenn du das nicht möchtest, nutze die App bitte nicht weiter."
         )
-        understood = gr.Checkbox(
-            label="Verstanden (nicht mehr anzeigen)",
-            value=False,
-            elem_classes="kalli-disclaimer-check"
-        )
+        understood = gr.Checkbox(label="Verstanden (nicht mehr anzeigen)", value=False)
 
     def _toggle_disclaimer(checked: bool):
         return gr.update(visible=not checked)
 
-    understood.change(_toggle_disclaimer, inputs=understood, outputs=disclaimer_row)
+    understood.change(_toggle_disclaimer, inputs=understood, outputs=disclaimer_box)
 
 
     # ----- Header -----
@@ -474,7 +448,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
 if __name__ == "__main__":
     # Für Deployment (Render, Docker etc.):
-    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    #demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
 
     # Für lokalen Test:
-    #demo.launch()
+    demo.launch()
