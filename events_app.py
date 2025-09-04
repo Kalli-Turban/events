@@ -102,6 +102,30 @@ button[aria-label="Fullscreen"], button[title="Fullscreen"] { display:none !impo
   #btn-clear { display: none !important; }
 }
 """
+CUSTOM_CSS += """
+/* Tipp-Badge Standard (Light Mode) */
+.tipp-badge {
+  display: inline-block;
+  background: #e6c07b;   /* helles Gelb */
+  color: #000;
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-right: 8px;
+  font-size: 0.9em;
+}
+.tipp-title {
+  color: #333;
+}
+/* Dark Mode (wenn Body oder HTML Dark-Mode-Klasse bekommt) */
+body.dark .tipp-badge, html.dark .tipp-badge {
+  background: #ff9800;   /* kräftiges Orange */
+  color: #fff;
+}
+body.dark .tipp-title, html.dark .tipp-title {
+  color: #ddd;
+}
+"""
 
 # =============================
 # BLOCK 2 — Tipp-Bereich & Event-Card Rendering
@@ -289,15 +313,9 @@ CUSTOM_CSS += """
 }
 """
 
-
-
-
-
 with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
 
-
     # Disclaimer-Row
-    
     with gr.Row(visible=True, elem_classes="kalli-disclaimer") as disclaimer_box:
         gr.HTML(
             "⚠️ Hinweis: Diese Anwendung lädt Schriften von externen Anbietern "
@@ -309,7 +327,6 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         return gr.update(visible=not checked)
 
     understood.change(_toggle_disclaimer, inputs=understood, outputs=disclaimer_box)
-
 
     # ----- Header -----
     with gr.Row(elem_classes="kalli-header"):
@@ -324,9 +341,6 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         tipp_md = gr.Markdown(visible=False)
         tipp_btn = gr.HTML(visible=False)
     gr.HTML('<div style="height:1px;background:#3a3a3a;margin:8px 0 14px;border-radius:1px;"></div>')
-
-
-
 
  # Optional: Ticker (Platzhalter)
    # with gr.Row(elem_classes="ticker-row"):
@@ -436,9 +450,8 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         row = load_tipp(supabase)
         if not row:
             return gr.update(visible=False), gr.update(visible=False)
-        # md = f"""### {row['title']}
-        md = f"""### Mein Tipp: {row['title']}
-
+        #md = f"""### Mein Tipp: {row['title']}
+        md = f"""### <span class="tipp-badge">Mein Tipp</span><span class="tipp-title">{row['title']}</span>
 
 {row.get('body', '') or ''}"""
         btn = tipp_chip_html(row)
