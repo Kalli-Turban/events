@@ -1,5 +1,6 @@
 # ============================================================
 #  Events-Frontend
+#  V2.4.1 (2025-09-04) Disclaimer, wegen Google-Fonts
 #  V2.4 (2025-08-24) neues Feld für Zielgruppe event_level mit CSS 
 #- v2.3 (2025-08-22) [KI+Kalli]
 #    • CSS komplett ins Hauptscript zurückgeführt
@@ -39,7 +40,7 @@ from dotenv import load_dotenv
 from supabase import create_client
 
 # ----- App Version -----
-__APP_VERSION__ = "Frontend v2.4 (mit Zielgruppe)"
+__APP_VERSION__ = "Frontend v2.4.1 (Disclaimer)"
 
 # ----- Supabase Setup -----
 load_dotenv()
@@ -51,6 +52,14 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 EVENTS_PER_PAGE = 6
 APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der Alternative für Deutschland"
 LOGO_PATH = "assets/logo_160_80.png"
+
+DISCLAIMER_HTML = """
+<div class="kalli-disclaimer">
+⚠️ Hinweis: Diese Anwendung lädt Schriften von externen Anbietern (z. B. Google Fonts).
+Wenn du das nicht möchtest, nutze die App bitte nicht weiter.
+</div>
+"""
+
 
 # ----- Zeit / Datum -----
 def today_berlin() -> str:
@@ -86,6 +95,7 @@ button[aria-label="Fullscreen"], button[title="Fullscreen"] { display:none !impo
   /* Filterleiste, Header, Aktionen komplett aus dem Layout entfernen */
   .kalli-header, .kalli-actions, #filterbar { display: none !important; }
   .kalli-header *, .kalli-actions *, #filterbar * { display: none !important; }
+
 
   /* Sicherheitsnetz gegen Tooltips/Popover/Portals */
   [role="tooltip"], [data-testid="tooltip"], .tooltip, .popover { display: none !important; }
@@ -268,7 +278,65 @@ def _clamp_page_for(q, page, show_all, start_date_val):
 # BLOCK 4 — UI & Handlers
 # =============================
 
+CUSTOM_CSS += """
+.kalli-disclaimer-row { display:flex; align-items:center; gap:14px; }
+.kalli-disclaimer-box {
+  background:#ffebcc; color:#333; padding:10px 14px; border:1px solid #e6c07b;
+  border-radius:8px; flex:1;
+}
+.kalli-disclaimer-check { white-space:nowrap; }
+@media (max-width:700px){
+  .kalli-disclaimer-row { flex-direction:column; align-items:stretch; }
+  .kalli-disclaimer-check { align-self:flex-end; }
+}
+.kalli-disclaimer-check input[type="checkbox"] {
+  accent-color: #e6c07b;  /* gelblich, passend zum Banner */
+}
+"""
+
+CUSTOM_CSS += """
+.kalli-disclaimer-check {
+  background:#fff3d6;        /* helles Gelb hinter der Checkbox-Zeile */
+  border:1px solid #e6c07b;  /* gelber Rand */
+  border-radius:6px;
+  padding:6px 10px;
+}
+.kalli-disclaimer-check label {
+  color:#333;                /* Textfarbe */
+  font-weight:bold;          /* optional: fett */
+}
+"""
+
+
+
+
+
+
 with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
+
+
+    # Disclaimer-Row
+    with gr.Row(visible=True, elem_classes="kalli-disclaimer-row") as disclaimer_row:
+        gr.HTML(
+            """
+            <div class="kalli-disclaimer-box">
+            ⚠️ Hinweis: Diese Anwendung lädt Schriften von externen Anbietern (z. B. Google Fonts).
+            Wenn du das nicht möchtest, nutze die App bitte nicht weiter.
+            </div>
+            """
+        )
+        understood = gr.Checkbox(
+            label="Verstanden (nicht mehr anzeigen)",
+            value=False,
+            elem_classes="kalli-disclaimer-check"
+        )
+
+    def _toggle_disclaimer(checked: bool):
+        return gr.update(visible=not checked)
+
+    understood.change(_toggle_disclaimer, inputs=understood, outputs=disclaimer_row)
+
+
     # ----- Header -----
     with gr.Row(elem_classes="kalli-header"):
         if os.path.exists(LOGO_PATH):
@@ -282,6 +350,8 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         tipp_md = gr.Markdown(visible=False)
         tipp_btn = gr.HTML(visible=False)
     gr.HTML('<div style="height:1px;background:#3a3a3a;margin:8px 0 14px;border-radius:1px;"></div>')
+
+
 
 
  # Optional: Ticker (Platzhalter)
@@ -404,7 +474,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
 if __name__ == "__main__":
     # Für Deployment (Render, Docker etc.):
-    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    #demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
 
     # Für lokalen Test:
-    #demo.launch()
+    demo.launch()
