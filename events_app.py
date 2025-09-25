@@ -1,5 +1,6 @@
 # ============================================================
 #  Events-Frontend
+#  V2.4.2 (2025-09-24) Counter Zugriff
 #  V2.4.1 (2025-09-04) Disclaimer, wegen Google-Fonts
 #  V2.4 (2025-08-24) neues Feld für Zielgruppe event_level mit CSS 
 #- v2.3 (2025-08-22) [KI+Kalli]
@@ -18,7 +19,7 @@
 #
 #   - v2.1 (2025-08-18) [KI+Kalli]:
 #       • Code refaktorisiert in Blöcke
-#       • Deployment/Local-Test Switch (demo.launch)
+#       • Deployment/Local-Test Switch (demo.launch) 
 #
 #  Autoren: KI + Kalli
 # ============================================================
@@ -40,12 +41,13 @@ from dotenv import load_dotenv
 from supabase import create_client
 
 # ----- App Version -----
-__APP_VERSION__ = "Frontend v2.4.1 (Disclaimer)"
+__APP_VERSION__ = "Frontend v2.4.2 (Disclaimer)"
 
 # ----- Supabase Setup -----
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_ROLE")
+#SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_ROLE")
+SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ----- Konstanten -----
@@ -314,6 +316,44 @@ CUSTOM_CSS += """
 """
 
 with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
+
+    # Pageview-Counter (1× pro Browser/Tag, nur auf erlaubten Hosts)
+    if SUPABASE_URL and SUPABASE_KEY:
+        demo.load(
+            fn=None,
+            js=f"""
+    (async () => {{
+    try {{
+        const allowed = ["events.turban-direkt.de", "localhost", "127.0.0.1"];
+        if (!allowed.includes(location.hostname)) return;
+
+        const stamp = "pv.bumped:" + new Date().toISOString().slice(0,10);
+        if (localStorage.getItem(stamp)) return;
+
+        const resp = await fetch("{SUPABASE_URL}/rest/v1/rpc/inc_counter", {{
+        method: "POST",
+        headers: {{
+            "Content-Type": "application/json",
+            "apikey": "{SUPABASE_KEY}",
+            "Authorization": "Bearer {SUPABASE_KEY}"
+        }},
+        body: JSON.stringify({{ counter_name: "events.pageview", by: 1 }})
+        }});
+
+        if (resp.ok) {{
+        localStorage.setItem(stamp, "1");
+        console.debug("[pageview] bumped");
+        }} else {{
+        console.warn("[pageview] failed", resp.status, await resp.text());
+        }}
+    }} catch (e) {{
+        console.error("[pageview] error", e);
+    }}
+    }})();
+            """,
+            queue=False
+        )
+
 
     # Disclaimer-Row
     with gr.Row(visible=True, elem_classes="kalli-disclaimer") as disclaimer_box:
