@@ -41,7 +41,7 @@ from dotenv import load_dotenv
 from supabase import create_client
 
 # ----- App Version -----
-__APP_VERSION__ = "Frontend v2.4.2 (Disclaimer)"
+__APP_VERSION__ = " © 2025 Karl-Heinz Turban. Alle Rechte vorbehalten. Logos/Marken gehören ihren jeweiligen Eigentümern. "
 
 # ----- Supabase Setup -----
 load_dotenv()
