@@ -303,7 +303,7 @@ def format_event_card(event: dict) -> str:
     kategorie = event.get("kategorie", "") or ""
     beschreibung = event.get("beschreibung", "") or ""
     level = (event.get("event_level") or "").strip()
-    level_line = f"🟢 Offenes Event? *{level}*" if level else ""
+    #level_line = f"🟢 Offenes Event? *{level}*" if level else ""
     level_html = f'<div class="kalli-event-level">🟢 Offenes Event? <strong>{level}</strong></div>' if level else ""
     link = event.get("link")
     pdf_url = event.get("pdf_url")

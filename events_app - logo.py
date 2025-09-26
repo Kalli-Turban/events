@@ -54,6 +54,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 EVENTS_PER_PAGE = 6
 YEAR = datetime.now().year
 APP_TITLE = "Events & Termine der Alternative für Deutschland  • Ein Service von Karl-Heinz -Kalli- Turban"
+BROWSER_TITLE = "Events & Termine – AfD"
 LOGO_PATH = "assets/logo_160_80.png"
 COUNTER_NAME = "events.pageview"  # bei Bedarf variabel machen 
 
@@ -210,7 +211,7 @@ def format_event_card(event: dict) -> str:
     kategorie = event.get("kategorie", "") or ""
     beschreibung = event.get("beschreibung", "") or ""
     level = (event.get("event_level") or "").strip()
-    level_line = f"🟢 Offenes Event? *{level}*" if level else ""
+    #level_line = f"🟢 Offenes Event? *{level}*" if level else ""
     level_html = f'<div class="kalli-event-level">🟢 Offenes Event? <strong>{level}</strong></div>' if level else ""
     link = event.get("link")
     pdf_url = event.get("pdf_url")
@@ -339,7 +340,7 @@ CUSTOM_CSS += """
 }
 """
 
-with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE}") as demo:
+with gr.Blocks(css=CUSTOM_CSS, title=f"{BROWSER_TITLE}") as demo:
 #with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
 
     # Pageview-Counter (nur auf erlaubten Hosts)
