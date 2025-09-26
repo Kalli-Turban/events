@@ -41,13 +41,12 @@ from dotenv import load_dotenv
 from supabase import create_client
 
 # ----- App Version -----
-#__APP_VERSION__ = " © 2025 Karl-Heinz Turban. Alle Rechte vorbehalten. Logos/Marken gehören ihren jeweiligen Eigentümern. "
-__APP_VERSION__ = "Frontend v2.4.1 (Disclaimer)"
+__APP_VERSION__ = " © 2025 Karl-Heinz Turban. Alle Rechte vorbehalten. Logos/Marken gehören ihren jeweiligen Eigentümern. "
+#__APP_VERSION__ = "Frontend v2.4.1 (Disclaimer)"
 
 # ----- Supabase Setup -----
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-#SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_SERVICE_ROLE")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -340,9 +339,10 @@ CUSTOM_CSS += """
 }
 """
 
-with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
+with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE}") as demo:
+#with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
 
-    # Pageview-Counter (1× pro Browser/Tag, nur auf erlaubten Hosts)
+    # Pageview-Counter (nur auf erlaubten Hosts)
 
     if SUPABASE_URL and SUPABASE_KEY:
         demo.load(
@@ -403,11 +403,6 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     with gr.Row(variant="compact", elem_id="counter-row"):
         counter_today = gr.Markdown("**Besucher Heute:** –")
         counter_total = gr.Markdown("**Besucher Gesamt:** –")
-
-
-# Beim UI-Start NUR die Werte setzen
-    demo.load(usage_snapshot_md, inputs=[], outputs=[counter_today, counter_total], queue=False)
-
 
  # 👉 beim UI-Start Zahlen laden (Client verbindet)
     demo.load(

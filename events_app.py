@@ -340,7 +340,8 @@ CUSTOM_CSS += """
 }
 """
 
-with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
+with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE}") as demo:
+#with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
 
     # Pageview-Counter (1× pro Browser/Tag, nur auf erlaubten Hosts)
 
@@ -403,10 +404,6 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     with gr.Row(variant="compact", elem_id="counter-row"):
         counter_today = gr.Markdown("**Besucher Heute:** –")
         counter_total = gr.Markdown("**Besucher Gesamt:** –")
-
-
-# Beim UI-Start NUR die Werte setzen
-    demo.load(usage_snapshot_md, inputs=[], outputs=[counter_today, counter_total], queue=False)
 
 
  # 👉 beim UI-Start Zahlen laden (Client verbindet)
