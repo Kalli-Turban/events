@@ -35,10 +35,18 @@ import math
 import re
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
-
+from pathlib import Path
 import gradio as gr
 from dotenv import load_dotenv
 from supabase import create_client
+
+# robust relativ zum Skript statt zum Working-Dir
+BASE_DIR = Path(__file__).resolve().parent
+ASSETS_DIR = BASE_DIR / "assets"
+
+LOGO_FILE = ASSETS_DIR / "logo_160_80.png"   # ggf. Dateiname anpassen
+LOGO_PATH = str(LOGO_FILE)                   # für gr.Image
+print(f"[logo] {LOGO_PATH} exists={LOGO_FILE.exists()}")
 
 # ----- App Version -----
 __APP_VERSION__ = " © 2025 Karl-Heinz Turban. Alle Rechte vorbehalten. Logos/Marken gehören ihren jeweiligen Eigentümern. "
@@ -378,7 +386,6 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{BROWSER_TITLE}") as demo:
         queue=False
     )
 
-
     # Disclaimer-Row
     with gr.Row(visible=True, elem_classes="kalli-disclaimer") as disclaimer_box:
         gr.HTML(
@@ -394,12 +401,16 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{BROWSER_TITLE}") as demo:
 
  # ----- Header -----
     with gr.Row(elem_classes="kalli-header"):
-        if os.path.exists(LOGO_PATH):
-            #gr.Image(LOGO_PATH, show_label=False, height=40, width=40, container=False)
-            gr.Image(LOGO_PATH, show_label=False, container=False, elem_classes="logo")
+        if LOGO_FILE.exists():
+            gr.Image(
+                value=LOGO_PATH,      # <- absoluter Pfad als String
+                show_label=False,
+                container=False,
+                elem_classes="logo",   # dein CSS kann bleiben
+                height=80              # optional
+            )
 
         gr.HTML(f"<div><div class='kalli-title'>{APP_TITLE}</div><div class='kalli-subtitle'>{__APP_VERSION__}</div></div>")
-
 
     with gr.Row(variant="compact", elem_id="counter-row"):
         counter_today = gr.Markdown("**Besucher Heute:** –")
@@ -553,7 +564,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{BROWSER_TITLE}") as demo:
 
 if __name__ == "__main__":
     # Für Deployment (Render, Docker etc.):
-    #demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
+    demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", 7860)))
 
     # Für lokalen Test:
-    demo.launch()
+    #demo.launch()
