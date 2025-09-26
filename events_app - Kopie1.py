@@ -1,6 +1,6 @@
 # ============================================================
 #  Events-Frontend
-#  V2.4.2 (2025-09-24) Counter Zugriff
+#  V2.4.2 (2025-09-26) Counter+Anzeige
 #  V2.4.1 (2025-09-04) Disclaimer, wegen Google-Fonts
 #  V2.4 (2025-08-24) neues Feld für Zielgruppe event_level mit CSS 
 #- v2.3 (2025-08-22) [KI+Kalli]
@@ -54,6 +54,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 EVENTS_PER_PAGE = 6
 APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der Alternative für Deutschland"
 LOGO_PATH = "assets/logo_160_80.png"
+COUNTER_NAME = "events.pageview"  # bei Bedarf variabel machen 
 
 DISCLAIMER_HTML = """
 <div class="kalli-disclaimer">
@@ -156,6 +157,33 @@ def load_tipp(sb):
         return data[0] if data else None
     except Exception:
         return None
+
+
+def usage_snapshot_values():
+    try:
+        res = supabase.rpc("get_counter_snapshot", {"counter_name": COUNTER_NAME}).execute()
+        row = (res.data or [{}])[0]
+        total = int(row.get("total") or 0)
+        today = int(row.get("today_count") or 0)
+
+        # hübsch mit Tausenderpunkten
+        fmt = lambda n: f"{n:,}".replace(",", ".")
+        return fmt(today), fmt(total)
+    except Exception as e:
+        print("[get_counter_snapshot] error:", e)
+        return "–", "–"
+
+
+#def usage_snapshot():
+#    try:
+#        res = supabase.rpc("get_counter_snapshot", {"counter_name": COUNTER_NAME}).execute()
+#        row = (res.data or [{}])[0]
+#        total = int(row.get("total", 0))
+#        today = int(row.get("today_count", 0))
+#        return f"**Heute:** {today}", f"**Gesamt:** {total}"
+#    except Exception:
+#        return "**Heute:** –", "**Gesamt:** –"
+
 
 # ----- CTA URL Resolver -----
 def resolve_cta_url(row):
@@ -305,6 +333,10 @@ def _clamp_page_for(q, page, show_all, start_date_val):
 # =============================
 
 CUSTOM_CSS += """
+#counter-row { align-items:center; gap:10px; padding:6px 0; }
+#counter-row .prose * { margin: 0; }  /* Markdown-Typo-Abstände minimieren */
+
+
 .kalli-disclaimer {
   display:flex; align-items:center; gap:14px;
   background:#ffebcc; color:#333;
@@ -318,44 +350,39 @@ CUSTOM_CSS += """
 with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as demo:
 
     # Pageview-Counter (1× pro Browser/Tag, nur auf erlaubten Hosts)
+
     if SUPABASE_URL and SUPABASE_KEY:
         demo.load(
             fn=None,
             js=f"""
-    (async () => {{
-    try {{
-        const allowed = ["events.turban-direkt.de", "localhost", "127.0.0.1"];
-        if (!allowed.includes(location.hostname)) return;
-
-        const stamp = "pv.bumped:" + new Date().toISOString().slice(0,10);
-        if (localStorage.getItem(stamp)) return;
-
-        const resp = await fetch("{SUPABASE_URL}/rest/v1/rpc/inc_counter", {{
-        method: "POST",
-        headers: {{
-            "Content-Type": "application/json",
-            "apikey": "{SUPABASE_KEY}",
-            "Authorization": "Bearer {SUPABASE_KEY}"
-        }},
-        body: JSON.stringify({{ counter_name: "events.pageview", by: 1 }})
-        }});
-
-        
-        if (resp.ok) {{
-        localStorage.setItem(stamp, "1");
-        console.debug("[pageview] bumped OK");
-        }} else {{
-        // kein setItem => nächster Load versucht es erneut
-        }}
+() => {{
+  const allowed = ["events.turban-direkt.de","localhost","127.0.0.1"];
+  if (!allowed.includes(location.hostname)) return null;
 
 
-    }} catch (e) {{
-        console.error("[pageview] error", e);
+  fetch("{SUPABASE_URL}/rest/v1/rpc/inc_counter", {{
+    method: "POST",
+    headers: {{
+      "Content-Type": "application/json",
+      "apikey": "{SUPABASE_KEY}",
+      "Authorization": "Bearer {SUPABASE_KEY}"
+    }},
+    body: JSON.stringify({{ counter_name: "events.pageview", by: 1 }})
+  }})
+  .then(r => {{
+    if (r.ok) {{
+      console.log("[pageview] bumped OK");
+    }} else {{
+      console.warn("[pageview] bump failed", r.status);
     }}
-    }})();
-            """,
-            queue=False
-        )
+  }})
+  .catch(e => console.error("[pageview] bump error", e));
+
+  return null;
+}}
+        """,
+        queue=False
+    )
 
 
     # Disclaimer-Row
@@ -379,6 +406,33 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
         gr.HTML(f"<div><div class='kalli-title'>{APP_TITLE}</div><div class='kalli-subtitle'>{__APP_VERSION__}</div></div>")
 
+
+    #with gr.Row(variant="compact
+#    with gr.Row(variant="compact", elem_id="counter-row"):
+#        val_today = gr.Markdown(value="**Besucher Heute:** –", elem_id="counter-today")
+#        val_total = gr.Markdown(value="**Besucher Gesamt:** –", elem_id="counter-total")
+#        #btn_refresh = gr.Button("🔄", size="sm")
+
+    with gr.Row(variant="compact", elem_id="counter-row"):
+        gr.Markdown("**Besucher Heute:**")
+        val_today  = gr.Markdown("–")
+        gr.Markdown("**Besucher Gesamt:**")
+        val_total  = gr.Markdown("–")
+
+# Beim UI-Start NUR die Werte setzen
+    demo.load(usage_snapshot_values, inputs=[], outputs=[val_today, val_total], queue=False)
+
+
+
+
+ # 👉 beim UI-Start Zahlen laden (Client verbindet)
+    demo.load(
+        usage_snapshot_values,
+        inputs=[],
+        outputs=[val_today, val_total],
+        queue=False
+    )
+
     # ----- Tipp des Tages -----
     with gr.Row():
         tipp_md = gr.Markdown(visible=False)
@@ -397,9 +451,6 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     # ----- Filterleiste -----
     with gr.Row(elem_id="filterbar"):
         suchfeld = gr.Textbox(label="🔎 Suche", placeholder="z.B. Stammtisch, Infostand … (min.2 Zeichen)", lines=1, max_lines=1)
-        #suchfeld = gr.Textbox(label="🔎 Suche", placeholder="z. B. Stammtisch, Infostand … (min. 2 Zeichen)")
-        #show_all = gr.Checkbox(label="Alle Termine zeigen", value=False)
-
         show_all = gr.CheckboxGroup(
         choices=["Alle Termine zeigen"],
         label="",          # kein extra Label
@@ -415,17 +466,35 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         next_btn = gr.Button("Weiter ➡️")
         print_btn = gr.Button("🖨 Drucken", elem_id="btn-print")
 
+
     print_evt = print_btn.click(fn=lambda: None, inputs=None, outputs=None, queue=False)
     print_evt.then(
         fn=None,
-        js="try{if(document.activeElement){document.activeElement.blur();}}catch(e){} window.print();",
-        queue=False
-    )
+        js="""
+() => {
+  try { if (document.activeElement) { document.activeElement.blur(); } } catch (e) {}
+  window.print();
+  return null;
+}
+    """,
+    queue=False
+)
 
-    # Fallback: direkter JS-Listener am Button (manche Gradio-Builds droppen js= am Event)
     demo.load(
         fn=None,
-        js="(()=>{const el=document.getElementById('btn-print');if(!el)return;el.addEventListener('click',()=>{try{if(document.activeElement){document.activeElement.blur();}}catch(e){} window.print();},{once:false});})()",
+        js="""
+    () => {
+    const el = document.getElementById('btn-print');
+    if (!el) return null;
+
+    el.addEventListener('click', () => {
+        try { if (document.activeElement) { document.activeElement.blur(); } } catch (e) {}
+        window.print();
+    }, { once: false });
+
+    return null;
+    }
+        """,
         queue=False
     )
 
@@ -481,7 +550,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
     back_btn.click(fn=go_back, inputs=[q_state, current_page, show_all, start_date_inp], outputs=[output_box, page_info, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
     next_btn.click(fn=go_next, inputs=[q_state, current_page, show_all, start_date_inp], outputs=[output_box, page_info, current_page]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
     clear_search.click(fn=clear_search_fn, inputs=[show_all, start_date_inp], outputs=[output_box, page_info, suchfeld, current_page, q_state]).then(fn=update_nav_from_info, inputs=[page_info], outputs=[back_btn, next_btn])
-
+    #btn_refresh.click(usage_snapshot, inputs=[], outputs=[counter_today, counter_total], queue=False)
     # ----- Initial Load -----
     demo.load(fn=do_search, inputs=[suchfeld, show_all, start_date_inp], outputs=[output_box, page_info, q_state, current_page])
 
