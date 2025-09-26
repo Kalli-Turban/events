@@ -42,6 +42,7 @@ from supabase import create_client
 
 # ----- App Version -----
 __APP_VERSION__ = " © 2025 Karl-Heinz Turban. Alle Rechte vorbehalten. Logos/Marken gehören ihren jeweiligen Eigentümern. "
+#__APP_VERSION__ = "Frontend v2.4.1 (Disclaimer)"
 
 # ----- Supabase Setup -----
 load_dotenv()
@@ -52,7 +53,8 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ----- Konstanten -----
 EVENTS_PER_PAGE = 6
-APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der Alternative für Deutschland"
+YEAR = datetime.now().year
+APP_TITLE = "Events & Termine der Alternative für Deutschland  • Ein Service von Karl-Heinz -Kalli- Turban"
 LOGO_PATH = "assets/logo_160_80.png"
 COUNTER_NAME = "events.pageview"  # bei Bedarf variabel machen 
 
@@ -389,14 +391,13 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
     understood.change(_toggle_disclaimer, inputs=understood, outputs=disclaimer_box)
 
-    # ----- Header -----
+ # ----- Header -----
     with gr.Row(elem_classes="kalli-header"):
         if os.path.exists(LOGO_PATH):
             #gr.Image(LOGO_PATH, show_label=False, height=40, width=40, container=False)
             gr.Image(LOGO_PATH, show_label=False, container=False, elem_classes="logo")
 
         gr.HTML(f"<div><div class='kalli-title'>{APP_TITLE}</div><div class='kalli-subtitle'>{__APP_VERSION__}</div></div>")
-
 
 
     with gr.Row(variant="compact", elem_id="counter-row"):

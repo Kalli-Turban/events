@@ -41,7 +41,8 @@ from dotenv import load_dotenv
 from supabase import create_client
 
 # ----- App Version -----
-__APP_VERSION__ = "Frontend v2.4.2 (Disclaimer)"
+#__APP_VERSION__ = " © 2025 Karl-Heinz Turban. Alle Rechte vorbehalten. Logos/Marken gehören ihren jeweiligen Eigentümern. "
+__APP_VERSION__ = "Frontend v2.4.1 (Disclaimer)"
 
 # ----- Supabase Setup -----
 load_dotenv()
@@ -52,7 +53,8 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ----- Konstanten -----
 EVENTS_PER_PAGE = 6
-APP_TITLE = "Ein Service von Karl-Heinz -Kalli- Turban • Events & Termine der Alternative für Deutschland"
+YEAR = datetime.now().year
+APP_TITLE = "Events & Termine der Alternative für Deutschland  • Ein Service von Karl-Heinz -Kalli- Turban"
 LOGO_PATH = "assets/logo_160_80.png"
 COUNTER_NAME = "events.pageview"  # bei Bedarf variabel machen 
 
@@ -158,31 +160,22 @@ def load_tipp(sb):
     except Exception:
         return None
 
-
-def usage_snapshot_values():
+def usage_snapshot_md():
     try:
         res = supabase.rpc("get_counter_snapshot", {"counter_name": COUNTER_NAME}).execute()
         row = (res.data or [{}])[0]
         total = int(row.get("total") or 0)
         today = int(row.get("today_count") or 0)
-
-        # hübsch mit Tausenderpunkten
         fmt = lambda n: f"{n:,}".replace(",", ".")
-        return fmt(today), fmt(total)
+        return (
+            f"**Besucher Heute:** {fmt(today)}",
+            f"**Besucher Gesamt:** {fmt(total)}"
+        )
     except Exception as e:
         print("[get_counter_snapshot] error:", e)
-        return "–", "–"
+        return "**Besucher Heute:** –", "**Besucher Gesamt:** –"
 
 
-#def usage_snapshot():
-#    try:
-#        res = supabase.rpc("get_counter_snapshot", {"counter_name": COUNTER_NAME}).execute()
-#        row = (res.data or [{}])[0]
-#        total = int(row.get("total", 0))
-#        today = int(row.get("today_count", 0))
-#        return f"**Heute:** {today}", f"**Gesamt:** {total}"
-#    except Exception:
-#        return "**Heute:** –", "**Gesamt:** –"
 
 
 # ----- CTA URL Resolver -----
@@ -398,7 +391,7 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
 
     understood.change(_toggle_disclaimer, inputs=understood, outputs=disclaimer_box)
 
-    # ----- Header -----
+ # ----- Header -----
     with gr.Row(elem_classes="kalli-header"):
         if os.path.exists(LOGO_PATH):
             #gr.Image(LOGO_PATH, show_label=False, height=40, width=40, container=False)
@@ -407,29 +400,20 @@ with gr.Blocks(css=CUSTOM_CSS, title=f"{APP_TITLE} · {__APP_VERSION__}") as dem
         gr.HTML(f"<div><div class='kalli-title'>{APP_TITLE}</div><div class='kalli-subtitle'>{__APP_VERSION__}</div></div>")
 
 
-    #with gr.Row(variant="compact
-#    with gr.Row(variant="compact", elem_id="counter-row"):
-#        val_today = gr.Markdown(value="**Besucher Heute:** –", elem_id="counter-today")
-#        val_total = gr.Markdown(value="**Besucher Gesamt:** –", elem_id="counter-total")
-#        #btn_refresh = gr.Button("🔄", size="sm")
-
     with gr.Row(variant="compact", elem_id="counter-row"):
-        gr.Markdown("**Besucher Heute:**")
-        val_today  = gr.Markdown("–")
-        gr.Markdown("**Besucher Gesamt:**")
-        val_total  = gr.Markdown("–")
+        counter_today = gr.Markdown("**Besucher Heute:** –")
+        counter_total = gr.Markdown("**Besucher Gesamt:** –")
+
 
 # Beim UI-Start NUR die Werte setzen
-    demo.load(usage_snapshot_values, inputs=[], outputs=[val_today, val_total], queue=False)
-
-
+    demo.load(usage_snapshot_md, inputs=[], outputs=[counter_today, counter_total], queue=False)
 
 
  # 👉 beim UI-Start Zahlen laden (Client verbindet)
     demo.load(
-        usage_snapshot_values,
+        usage_snapshot_md,
         inputs=[],
-        outputs=[val_today, val_total],
+        outputs=[counter_today, counter_total],
         queue=False
     )
 
